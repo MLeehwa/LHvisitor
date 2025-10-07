@@ -1,10 +1,10 @@
 // Service Worker for PWA functionality
-const CACHE_NAME = 'visitor-system-v3';
+const CACHE_NAME = 'visitor-system-v5';
 const urlsToCache = [
   '/',
   '/index.html',
   '/admin.html',
-  '/script.js',
+  '/main.js',
   '/admin.js',
   '/config.js',
   '/supabase-client.js',
@@ -16,12 +16,39 @@ const urlsToCache = [
 
 // Install event
 self.addEventListener('install', (event) => {
+  console.log('Service Worker 설치 중...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
+        console.log('새 캐시 열기:', CACHE_NAME);
         return cache.addAll(urlsToCache);
       })
+      .then(() => {
+        console.log('모든 파일이 캐시되었습니다');
+        // 즉시 활성화
+        return self.skipWaiting();
+      })
+  );
+});
+
+// Activate event
+self.addEventListener('activate', (event) => {
+  console.log('Service Worker 활성화 중...');
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('이전 캐시 삭제:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => {
+      console.log('Service Worker 활성화 완료');
+      // 모든 클라이언트에 즉시 제어권 획득
+      return self.clients.claim();
+    })
   );
 });
 
@@ -55,12 +82,14 @@ self.addEventListener('fetch', (event) => {
               return networkResponse;
             }
             
-            // 응답을 캐시에 저장
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
+            // 응답을 캐시에 저장 (chrome-extension URL 제외)
+            if (!event.request.url.startsWith('chrome-extension://')) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME)
+                .then((cache) => {
+                  cache.put(event.request, responseToCache);
+                });
+            }
             
             return networkResponse;
           })

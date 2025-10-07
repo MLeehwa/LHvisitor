@@ -1284,7 +1284,6 @@ class VisitorManagementSystem {
             
             this.loadSettingsToForm();
             this.updateVisitorList();
-            this.updateLogList();
             this.renderFrequentVisitorsList();
         } else {
             this.showNotification('로그인 실패', '비밀번호가 올바르지 않습니다.', 'error');
@@ -1293,12 +1292,19 @@ class VisitorManagementSystem {
 
     // 설정을 폼에 로드
     loadSettingsToForm() {
-        this.renderLocationList();
+        // 관리자 모드에서만 위치 목록을 렌더링
+        if (document.getElementById('locationList')) {
+            this.renderLocationList();
+        }
     }
 
     // 위치 목록 렌더링
     renderLocationList() {
         const locationList = document.getElementById('locationList');
+        if (!locationList) {
+            console.log('locationList 컨테이너를 찾을 수 없습니다. 관리자 모드가 아닐 수 있습니다.');
+            return;
+        }
         locationList.innerHTML = '';
 
         if (this.locations.length === 0) {
@@ -1463,7 +1469,9 @@ class VisitorManagementSystem {
         };
         
         this.locations.push(newLocation);
-        this.renderLocationList();
+        if (document.getElementById('locationList')) {
+            this.renderLocationList();
+        }
         this.showNotification('위치 추가', '새 위치가 추가되었습니다. 이름과 구분을 설정해주세요.', 'success');
     }
 
@@ -1483,7 +1491,9 @@ class VisitorManagementSystem {
         const location = this.locations[index];
         if (confirm(`"${location.name}" 위치를 삭제하시겠습니까?`)) {
             this.locations.splice(index, 1);
-            this.renderLocationList();
+            if (document.getElementById('locationList')) {
+                this.renderLocationList();
+            }
             this.showNotification('위치 삭제', '위치가 삭제되었습니다.', 'success');
         }
     }
@@ -1693,112 +1703,11 @@ class VisitorManagementSystem {
         this.showNotification('위치 테스트 결과', message, isWithinRadius ? 'success' : 'warning');
     }
 
-    // 로그 목록 업데이트
-    updateLogList() {
-        console.log('=== 방문 로그 목록 업데이트 시작 ===');
-        console.log('전체 로그 수:', this.visitLogs.length);
-        console.log('전체 로그 데이터:', this.visitLogs);
-        
-        const container = document.getElementById('logList');
-        if (!container) {
-            console.error('❌ logList 컨테이너를 찾을 수 없습니다.');
-            return;
-        }
-        
-        console.log('✅ logList 컨테이너 찾음');
-        container.innerHTML = '';
 
-        const filteredLogs = this.getFilteredLogs();
-        console.log('필터링된 로그 수:', filteredLogs.length);
-        console.log('필터링된 로그 데이터:', filteredLogs);
-
-        if (filteredLogs.length === 0) {
-            console.log('📝 로그가 없어서 빈 상태 메시지 표시');
-            container.innerHTML = `
-                <div class="text-center py-8 text-gray-500">
-                    <i class="fas fa-clipboard-list text-4xl mb-4"></i>
-                    <p>표시할 로그가 없습니다.</p>
-                </div>
-            `;
-            return;
-        }
-
-        console.log('📝 로그 카드 생성 시작');
-        filteredLogs.forEach((log, index) => {
-            console.log(`로그 ${index + 1} 렌더링:`, log);
-            const item = document.createElement('div');
-            item.className = 'card bg-base-100 shadow-sm border';
-            
-            const actionText = log.action === 'checkin' ? '체크인' : '체크아웃';
-            const categoryText = log.category === 'dormitory' ? '기숙사' : '공장';
-            console.log(`로그 ${index + 1} - 액션: ${actionText}, 카테고리: ${categoryText}`);
-            
-            let details = '';
-            if (log.category === 'factory') {
-                details = `
-                    <div class="text-sm text-gray-600 space-y-1">
-                        <div><strong>회사:</strong> ${log.company}</div>
-                        <div><strong>전화번호:</strong> ${log.phone}</div>
-                        <div><strong>방문목적:</strong> ${this.getPurposeText(log.purpose)}</div>
-                    </div>
-                `;
-            }
-
-            item.innerHTML = `
-                <div class="card-body p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <h4 class="font-semibold">${log.name}</h4>
-                            <div class="badge ${log.category === 'dormitory' ? 'badge-primary' : 'badge-warning'}">
-                                ${categoryText}
-                </div>
-                            <div class="badge ${log.action === 'checkin' ? 'badge-success' : 'badge-error'}">
-                                ${actionText}
-                </div>
-                        </div>
-                        <span class="text-sm text-gray-500">${this.formatTime(log.timestamp)}</span>
-                </div>
-                    ${details}
-                </div>
-            `;
-            
-            container.appendChild(item);
-            console.log(`로그 ${index + 1} 카드 추가 완료`);
-        });
-        
-        console.log('=== 방문 로그 목록 업데이트 완료 ===');
-    }
-
-    // 필터된 로그 가져오기
-    getFilteredLogs() {
-        let logs = [...this.visitLogs];
-        
-        const categoryFilter = document.getElementById('logCategoryFilter').value;
-        const dateFilter = document.getElementById('logDateFilter').value;
-        
-        if (categoryFilter !== 'all') {
-            logs = logs.filter(log => log.category === categoryFilter);
-        }
-        
-        if (dateFilter) {
-            const filterDate = new Date(dateFilter);
-            logs = logs.filter(log => {
-                const logDate = new Date(log.timestamp);
-                return logDate.toDateString() === filterDate.toDateString();
-            });
-        }
-        
-        return logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    }
-
-    // 로그 필터링
-    filterLogs() {
-        this.updateLogList();
-    }
 
     // 로그 엑셀 다운로드
     exportLogs() {
-        const logs = this.getFilteredLogs();
+        const logs = this.visitLogs;
         const csvContent = this.convertToCSV(logs);
         
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

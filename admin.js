@@ -855,6 +855,10 @@ class AdminSystem {
     // 로그 목록 업데이트
     updateLogList() {
         const container = document.getElementById('logList');
+        if (!container) {
+            console.log('logList 컨테이너를 찾을 수 없습니다.');
+            return;
+        }
         container.innerHTML = '';
 
         const filteredLogs = this.getFilteredLogs();
