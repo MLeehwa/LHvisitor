@@ -372,6 +372,20 @@
     </div>
 
     <script src="config.js"></script>
+    <script>
+        // Supabase 클라이언트 초기화를 기다림
+        window.addEventListener('load', () => {
+            // Supabase 클라이언트가 준비될 때까지 기다림
+            const initSupabaseClient = () => {
+                if (window.supabaseClient && window.supabaseClient.client) {
+                    console.log('Supabase 클라이언트 준비 완료');
+                } else {
+                    setTimeout(initSupabaseClient, 100);
+                }
+            };
+            initSupabaseClient();
+        });
+    </script>
     <script src="supabase-client.js"></script>
     <script src="script.js"></script>
     

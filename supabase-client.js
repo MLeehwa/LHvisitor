@@ -8,7 +8,8 @@ class SupabaseClient {
     
     // 초기화
     init() {
-        try {
+        // Supabase가 로드될 때까지 기다림
+        this.waitForSupabase().then(() => {
             this.client = this.config.initSupabase();
             console.log('Supabase 클라이언트 초기화:', this.client ? '성공' : '실패');
             console.log('동기화 설정:', this.config.sync);
@@ -19,9 +20,27 @@ class SupabaseClient {
             } else {
                 console.warn('Supabase 동기화가 비활성화되어 있습니다');
             }
-        } catch (error) {
+        }).catch(error => {
             console.error('Supabase 초기화 오류:', error);
+        });
+    }
+    
+    // Supabase 로딩 대기
+    async waitForSupabase() {
+        let retryCount = 0;
+        const maxRetries = 20; // 10초 대기
+        
+        while (typeof supabase === 'undefined' && retryCount < maxRetries) {
+            console.log(`Supabase 로딩 대기 중... (${retryCount + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            retryCount++;
         }
+        
+        if (typeof supabase === 'undefined') {
+            throw new Error('Supabase 로딩 시간 초과');
+        }
+        
+        console.log('Supabase 로딩 완료');
     }
     
     // 자동 동기화 시작
@@ -291,25 +310,25 @@ class SupabaseClient {
                 
                 console.log('변환된 자주 방문자 데이터:', convertedFrequentVisitors);
                 
-                if (window.visitorSystem) {
-                    console.log('메인 시스템에 자주 방문자 데이터 할당 중...');
-                    window.visitorSystem.frequentVisitors = convertedFrequentVisitors;
-                    console.log('메인 시스템 자주 방문자 데이터:', window.visitorSystem.frequentVisitors);
-                    window.visitorSystem.renderFrequentVisitorsList();
-                    console.log('메인 시스템에 자주 방문자 데이터 할당 완료');
-                } else {
-                    console.warn('window.visitorSystem이 없습니다.');
-                }
+                // 시스템이 준비될 때까지 기다림
+                const assignToSystem = (systemName, system) => {
+                    if (system) {
+                        console.log(`${systemName}에 자주 방문자 데이터 할당 중...`);
+                        system.frequentVisitors = convertedFrequentVisitors;
+                        console.log(`${systemName} 자주 방문자 데이터:`, system.frequentVisitors);
+                        if (typeof system.renderFrequentVisitorsList === 'function') {
+                            system.renderFrequentVisitorsList();
+                            console.log(`${systemName}에 자주 방문자 데이터 할당 완료`);
+                        } else {
+                            console.warn(`${systemName}에 renderFrequentVisitorsList 메서드가 없습니다.`);
+                        }
+                    } else {
+                        console.warn(`${systemName}이 없습니다.`);
+                    }
+                };
                 
-                if (window.adminSystem) {
-                    console.log('관리자 시스템에 자주 방문자 데이터 할당 중...');
-                    window.adminSystem.frequentVisitors = convertedFrequentVisitors;
-                    console.log('관리자 시스템 자주 방문자 데이터:', window.adminSystem.frequentVisitors);
-                    window.adminSystem.renderFrequentVisitorsList();
-                    console.log('관리자 시스템에 자주 방문자 데이터 할당 완료');
-                } else {
-                    console.warn('window.adminSystem이 없습니다.');
-                }
+                assignToSystem('메인 시스템', window.visitorSystem);
+                assignToSystem('관리자 시스템', window.adminSystem);
             }
             
             // 방문자 데이터 로드

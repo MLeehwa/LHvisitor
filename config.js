@@ -32,12 +32,20 @@ class DatabaseConfig {
     
     // Supabase 클라이언트 초기화
     initSupabase() {
+        // Supabase가 로드될 때까지 기다림
         if (typeof supabase === 'undefined') {
-            console.error('Supabase가 로드되지 않았습니다. HTML에 Supabase 스크립트를 추가해주세요.');
+            console.warn('Supabase가 아직 로드되지 않았습니다. 잠시 후 다시 시도합니다.');
             return null;
         }
         
-        return supabase.createClient(this.supabaseUrl, this.supabaseKey);
+        try {
+            const client = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+            console.log('Supabase 클라이언트 생성 성공');
+            return client;
+        } catch (error) {
+            console.error('Supabase 클라이언트 생성 실패:', error);
+            return null;
+        }
     }
     
     // 설정 업데이트
