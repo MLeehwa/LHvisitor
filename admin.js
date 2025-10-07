@@ -784,19 +784,21 @@ class AdminSystem {
 
     // 자주 방문자 목록 렌더링
     renderFrequentVisitorsList() {
-        console.log('자주 방문자 목록 렌더링 시작...');
+        console.log('=== 관리자 자주 방문자 목록 렌더링 시작 ===');
         console.log('현재 자주 방문자 수:', this.frequentVisitors.length);
         console.log('자주 방문자 데이터:', this.frequentVisitors);
         
         const container = document.getElementById('frequentVisitorsList');
         if (!container) {
-            console.error('frequentVisitorsList 컨테이너를 찾을 수 없습니다.');
+            console.error('❌ frequentVisitorsList 컨테이너를 찾을 수 없습니다.');
             return;
         }
         
+        console.log('✅ frequentVisitorsList 컨테이너 찾음');
         container.innerHTML = '';
 
         if (this.frequentVisitors.length === 0) {
+            console.log('📝 자주 방문자가 없어서 빈 상태 메시지 표시');
             container.innerHTML = `
                 <div class="text-center py-8 text-gray-500">
                     <i class="fas fa-users text-4xl text-gray-300 mb-4"></i>
@@ -807,6 +809,7 @@ class AdminSystem {
             return;
         }
 
+        console.log('📝 자주 방문자 카드 생성 시작');
         this.frequentVisitors.forEach((visitor, index) => {
             console.log(`자주 방문자 ${index + 1} 렌더링:`, visitor);
             const visitorCard = document.createElement('div');
@@ -814,8 +817,8 @@ class AdminSystem {
             visitorCard.innerHTML = `
                 <div class="flex items-center space-x-3">
                     <i class="fas fa-user text-primary"></i>
-                    <span class="font-medium">${visitor.name}</span>
-                    <span class="text-sm text-gray-500">(${visitor.lastName} ${visitor.firstName})</span>
+                    <span class="font-medium">${visitor.name || '이름 없음'}</span>
+                    <span class="text-sm text-gray-500">(${visitor.lastName || ''} ${visitor.firstName || ''})</span>
                 </div>
                 <button onclick="adminSystem.removeFrequentVisitor('${visitor.id}')" 
                         class="btn btn-sm btn-error btn-outline">
@@ -823,9 +826,10 @@ class AdminSystem {
                 </button>
             `;
             container.appendChild(visitorCard);
+            console.log(`자주 방문자 ${index + 1} 카드 추가 완료`);
         });
         
-        console.log('자주 방문자 목록 렌더링 완료');
+        console.log('=== 관리자 자주 방문자 목록 렌더링 완료 ===');
     }
 
     // 자주 방문자 삭제

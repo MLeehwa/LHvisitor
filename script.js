@@ -1676,12 +1676,25 @@ class VisitorManagementSystem {
 
     // 로그 목록 업데이트
     updateLogList() {
+        console.log('=== 방문 로그 목록 업데이트 시작 ===');
+        console.log('전체 로그 수:', this.visitLogs.length);
+        console.log('전체 로그 데이터:', this.visitLogs);
+        
         const container = document.getElementById('logList');
+        if (!container) {
+            console.error('❌ logList 컨테이너를 찾을 수 없습니다.');
+            return;
+        }
+        
+        console.log('✅ logList 컨테이너 찾음');
         container.innerHTML = '';
 
         const filteredLogs = this.getFilteredLogs();
+        console.log('필터링된 로그 수:', filteredLogs.length);
+        console.log('필터링된 로그 데이터:', filteredLogs);
 
         if (filteredLogs.length === 0) {
+            console.log('📝 로그가 없어서 빈 상태 메시지 표시');
             container.innerHTML = `
                 <div class="text-center py-8 text-gray-500">
                     <i class="fas fa-clipboard-list text-4xl mb-4"></i>
@@ -1691,12 +1704,15 @@ class VisitorManagementSystem {
             return;
         }
 
-        filteredLogs.forEach(log => {
+        console.log('📝 로그 카드 생성 시작');
+        filteredLogs.forEach((log, index) => {
+            console.log(`로그 ${index + 1} 렌더링:`, log);
             const item = document.createElement('div');
             item.className = 'card bg-base-100 shadow-sm border';
             
             const actionText = log.action === 'checkin' ? '체크인' : '체크아웃';
             const categoryText = log.category === 'dormitory' ? '기숙사' : '공장';
+            console.log(`로그 ${index + 1} - 액션: ${actionText}, 카테고리: ${categoryText}`);
             
             let details = '';
             if (log.category === 'factory') {
@@ -1728,7 +1744,10 @@ class VisitorManagementSystem {
             `;
             
             container.appendChild(item);
+            console.log(`로그 ${index + 1} 카드 추가 완료`);
         });
+        
+        console.log('=== 방문 로그 목록 업데이트 완료 ===');
     }
 
     // 필터된 로그 가져오기
@@ -2098,17 +2117,41 @@ class VisitorManagementSystem {
 
     // 자주 방문자 목록 렌더링
     renderFrequentVisitorsList() {
+        console.log('=== 자주 방문자 목록 렌더링 시작 ===');
+        console.log('현재 자주 방문자 수:', this.frequentVisitors.length);
+        console.log('자주 방문자 데이터:', this.frequentVisitors);
+        
         const container = document.getElementById('frequentVisitorsList');
+        if (!container) {
+            console.error('❌ frequentVisitorsList 컨테이너를 찾을 수 없습니다.');
+            return;
+        }
+        
+        console.log('✅ frequentVisitorsList 컨테이너 찾음');
         container.innerHTML = '';
 
-        this.frequentVisitors.forEach(visitor => {
+        if (this.frequentVisitors.length === 0) {
+            console.log('📝 자주 방문자가 없어서 빈 상태 메시지 표시');
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-users text-4xl text-gray-300 mb-4"></i>
+                    <p>등록된 자주 방문자가 없습니다.</p>
+                    <p class="text-sm text-gray-400 mt-2">위의 폼을 사용하여 자주 방문자를 추가해보세요.</p>
+                </div>
+            `;
+            return;
+        }
+
+        console.log('📝 자주 방문자 카드 생성 시작');
+        this.frequentVisitors.forEach((visitor, index) => {
+            console.log(`자주 방문자 ${index + 1} 렌더링:`, visitor);
             const visitorCard = document.createElement('div');
             visitorCard.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
             visitorCard.innerHTML = `
                 <div class="flex items-center space-x-3">
                     <i class="fas fa-user text-primary"></i>
-                    <span class="font-medium">${visitor.name}</span>
-                    <span class="text-sm text-gray-500">(${visitor.lastName} ${visitor.firstName})</span>
+                    <span class="font-medium">${visitor.name || '이름 없음'}</span>
+                    <span class="text-sm text-gray-500">(${visitor.lastName || ''} ${visitor.firstName || ''})</span>
                 </div>
                 <button onclick="window.visitorSystem.removeFrequentVisitor('${visitor.id}')" 
                         class="btn btn-sm btn-error btn-outline">
@@ -2116,7 +2159,10 @@ class VisitorManagementSystem {
                 </button>
             `;
             container.appendChild(visitorCard);
+            console.log(`자주 방문자 ${index + 1} 카드 추가 완료`);
         });
+        
+        console.log('=== 자주 방문자 목록 렌더링 완료 ===');
     }
 
     // 자주 방문자 삭제
