@@ -1393,9 +1393,27 @@ class AdminSystem {
 }
 
 // 페이지 로드 시 관리자 시스템 초기화
-document.addEventListener('DOMContentLoaded', () => {
-    window.adminSystem = new AdminSystem();
-    window.adminManager = window.adminSystem; // 호환성을 위한 별칭
-    console.log('AdminSystem 초기화 완료');
+document.addEventListener('DOMContentLoaded', async () => {
+    // Supabase 클라이언트 초기화를 기다림
+    let retryCount = 0;
+    const maxRetries = 10;
+    
+    while (!window.supabaseClient && retryCount < maxRetries) {
+        console.log(`Supabase 클라이언트 초기화 대기 중... (${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        retryCount++;
+    }
+    
+    if (window.supabaseClient) {
+        console.log('Supabase 클라이언트 초기화 완료, 관리자 시스템 시작');
+        window.adminSystem = new AdminSystem();
+        window.adminManager = window.adminSystem; // 호환성을 위한 별칭
+        console.log('AdminSystem 초기화 완료');
+    } else {
+        console.warn('Supabase 클라이언트 초기화 실패, 관리자 시스템을 로컬 모드로 시작');
+        window.adminSystem = new AdminSystem();
+        window.adminManager = window.adminSystem; // 호환성을 위한 별칭
+        console.log('AdminSystem 초기화 완료 (로컬 모드)');
+    }
 });
 

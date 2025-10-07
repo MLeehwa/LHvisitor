@@ -2305,6 +2305,22 @@ class VisitorManagementSystem {
 }
 
 // 페이지 로드 시 시스템 초기화
-document.addEventListener('DOMContentLoaded', () => {
-    window.visitorSystem = new VisitorManagementSystem();
+document.addEventListener('DOMContentLoaded', async () => {
+    // Supabase 클라이언트 초기화를 기다림
+    let retryCount = 0;
+    const maxRetries = 10;
+    
+    while (!window.supabaseClient && retryCount < maxRetries) {
+        console.log(`Supabase 클라이언트 초기화 대기 중... (${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        retryCount++;
+    }
+    
+    if (window.supabaseClient) {
+        console.log('Supabase 클라이언트 초기화 완료, 시스템 시작');
+        window.visitorSystem = new VisitorManagementSystem();
+    } else {
+        console.warn('Supabase 클라이언트 초기화 실패, 시스템을 로컬 모드로 시작');
+        window.visitorSystem = new VisitorManagementSystem();
+    }
 });
