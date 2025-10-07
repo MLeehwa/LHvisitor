@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>관리자 모드 - 기숙사 방문자 관리 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#8b5cf6',
+                        accent: '#06b6d4',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen">
+    <!-- 상단 헤더 -->
+    <div class="navbar bg-white shadow-lg">
+        <div class="flex-1">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-cog text-3xl text-primary"></i>
+                <h1 class="text-2xl font-bold text-gray-800">관리자 모드</h1>
+            </div>
+        </div>
+        <div class="flex-none">
+            <button id="refreshBtn" class="btn btn-primary btn-outline">
+                <i class="fas fa-sync-alt"></i>
+                새로고침
+            </button>
+            <button id="closeAdminBtn" class="btn btn-error btn-outline ml-2">
+                <i class="fas fa-times"></i>
+                닫기
+            </button>
+        </div>
+    </div>
+
+    <!-- 로그인 모달 -->
+    <div id="adminLoginModal" class="modal modal-open">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg mb-4">
+                <i class="fas fa-lock text-primary mr-2"></i>
+                관리자 로그인
+            </h3>
+            <div class="form-control w-full">
+                <label class="label">
+                    <span class="label-text">비밀번호</span>
+                </label>
+                <input type="password" id="adminPassword" class="input input-bordered w-full" placeholder="비밀번호를 입력하세요" autocomplete="current-password" required onkeypress="if(event.key==='Enter') window.adminManager.handleLogin()">
+            </div>
+            <div class="modal-action">
+                <button id="adminLoginBtn" class="btn btn-primary" onclick="window.adminManager.handleLogin()">
+                    <i class="fas fa-sign-in-alt mr-2"></i>
+                    로그인
+                </button>
+                <button class="btn btn-secondary" onclick="window.adminManager.testLogin()">
+                    테스트
+                </button>
+            </div>
+            <div id="loginError" class="alert alert-error mt-4 animate-pulse" style="display: none;">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>❌ 비밀번호가 올바르지 않습니다. 다시 시도해주세요.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 컨테이너 -->
+    <div id="adminMainContent" class="container mx-auto px-4 py-8 hidden">
+        <!-- 현재 방문자 현황 -->
+        <div class="card bg-white shadow-xl mb-8">
+            <div class="card-body text-center">
+                <h3 class="text-xl font-semibold mb-4">
+                    <i class="fas fa-users text-primary mr-2"></i>
+                    현재 방문자 현황
+                </h3>
+                <div class="stats shadow">
+                    <div class="stat">
+                        <div class="stat-figure text-primary">
+                            <i class="fas fa-home text-3xl"></i>
+                        </div>
+                        <div class="stat-title">기숙사</div>
+                        <div class="stat-value text-primary" id="dormitoryCount">0</div>
+                        <div class="stat-desc">명 체크인 중</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-figure text-warning">
+                            <i class="fas fa-industry text-3xl"></i>
+                        </div>
+                        <div class="stat-title">공장</div>
+                        <div class="stat-value text-warning" id="factoryCount">0</div>
+                        <div class="stat-desc">명 체크인 중</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-figure text-success">
+                            <i class="fas fa-users text-3xl"></i>
+                        </div>
+                        <div class="stat-title">총 방문자</div>
+                        <div class="stat-value text-success" id="totalCount">0</div>
+                        <div class="stat-desc">명 체크인 중</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 현재 방문자 목록 -->
+        <div class="card bg-white shadow-xl mb-8">
+            <div class="card-body">
+                <h4 class="text-xl font-semibold mb-4">
+                    <i class="fas fa-users text-primary mr-2"></i>
+                    현재 방문자 목록
+                </h4>
+                <div id="visitorList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- 방문자 목록이 동적으로 추가됩니다 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 방문 로그 -->
+        <div class="card bg-white shadow-xl mb-8">
+            <div class="card-body">
+                <h4 class="text-xl font-semibold mb-4">
+                    <i class="fas fa-clipboard-list text-primary mr-2"></i>
+                    방문 로그
+                </h4>
+                
+                <!-- 고급 필터링 옵션 -->
+                <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                    <h5 class="text-lg font-semibold mb-4 text-gray-700">
+                        <i class="fas fa-filter mr-2"></i>
+                        고급 필터링 (Advanced Filtering)
+                    </h5>
+                    
+                    <!-- 첫 번째 행: 기본 필터 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">카테고리 (Category)</span>
+                            </label>
+                            <select id="logCategoryFilter" class="select select-bordered select-sm">
+                                <option value="all">전체 (All)</option>
+                                <option value="dormitory">기숙사 (Dormitory)</option>
+                                <option value="factory">공장 (Factory)</option>
+                            </select>
+                        </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">방문자 검색 (Visitor Search)</span>
+                            </label>
+                            <input type="text" id="logVisitorSearch" placeholder="이름으로 검색..." 
+                                   class="input input-bordered input-sm">
+                        </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">위치 검색 (Location Search)</span>
+                            </label>
+                            <input type="text" id="logLocationSearch" placeholder="위치로 검색..." 
+                                   class="input input-bordered input-sm">
+                        </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">방문 목적 (Purpose)</span>
+                            </label>
+                            <select id="logPurposeFilter" class="select select-bordered select-sm">
+                                <option value="all">전체 (All)</option>
+                                <option value="business">업무 (Business)</option>
+                                <option value="personal">개인 (Personal)</option>
+                                <option value="delivery">배송 (Delivery)</option>
+                                <option value="maintenance">유지보수 (Maintenance)</option>
+                                <option value="other">기타 (Other)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 두 번째 행: 날짜 및 시간 필터 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">시작 날짜 (Start Date)</span>
+                            </label>
+                            <input type="date" id="logStartDate" class="input input-bordered input-sm">
+                        </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">종료 날짜 (End Date)</span>
+                            </label>
+                            <input type="date" id="logEndDate" class="input input-bordered input-sm">
+                        </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">시간대 (Time Period)</span>
+                            </label>
+                            <select id="logTimeFilter" class="select select-bordered select-sm">
+                                <option value="all">전체 (All)</option>
+                                <option value="morning">오전 (6-12시)</option>
+                                <option value="afternoon">오후 (12-18시)</option>
+                                <option value="evening">저녁 (18-24시)</option>
+                                <option value="night">밤 (0-6시)</option>
+                            </select>
+                        </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">정렬 (Sort)</span>
+                            </label>
+                            <select id="logSortFilter" class="select select-bordered select-sm">
+                                <option value="newest">최신순 (Newest)</option>
+                                <option value="oldest">오래된순 (Oldest)</option>
+                                <option value="name">이름순 (Name)</option>
+                                <option value="location">위치순 (Location)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 세 번째 행: 제한 및 기타 옵션 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">표시 개수 (Limit)</span>
+                            </label>
+                            <select id="logLimitFilter" class="select select-bordered select-sm">
+                                <option value="all">전체 (All)</option>
+                                <option value="50">50개</option>
+                                <option value="100">100개</option>
+                                <option value="200">200개</option>
+                                <option value="500">500개</option>
+                            </select>
+                        </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">상태 (Status)</span>
+                            </label>
+                            <select id="logStatusFilter" class="select select-bordered select-sm">
+                                <option value="all">전체 (All)</option>
+                                <option value="completed">완료 (Completed)</option>
+                                <option value="checked-in">체크인됨 (Checked In)</option>
+                                <option value="checked-out">체크아웃됨 (Checked Out)</option>
+                            </select>
+                        </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">회사 (Company)</span>
+                            </label>
+                            <input type="text" id="logCompanySearch" placeholder="회사명으로 검색..." 
+                                   class="input input-bordered input-sm">
+                        </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">기타 (Other)</span>
+                            </label>
+                            <select id="logOtherFilter" class="select select-bordered select-sm">
+                                <option value="all">전체 (All)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 필터 버튼들 -->
+                    <div class="flex gap-2 flex-wrap">
+                        <button id="applyFiltersBtn" class="btn btn-primary btn-sm">
+                            <i class="fas fa-search mr-1"></i>
+                            필터 적용 (Apply Filters)
+                        </button>
+                        <button id="clearFiltersBtn" class="btn btn-outline btn-sm">
+                            <i class="fas fa-times mr-1"></i>
+                            필터 초기화 (Clear)
+                        </button>
+                        <button id="exportLogBtn" class="btn btn-success btn-sm">
+                            <i class="fas fa-download mr-1"></i>
+                            엑셀 다운로드 (Export)
+                        </button>
+                        <div class="ml-auto">
+                            <span id="logCountDisplay" class="text-sm text-gray-600 font-medium">
+                                총 0개의 로그가 있습니다
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="logList" class="max-h-96 overflow-y-auto space-y-2">
+                    <!-- 로그 목록이 동적으로 표시됩니다 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 자주 방문하는 방문자 관리 -->
+        <div class="card bg-white shadow-xl mb-8">
+            <div class="card-body">
+                <h4 class="text-xl font-semibold mb-4">
+                    <i class="fas fa-user-friends text-primary mr-2"></i>
+                    자주 방문하는 방문자 관리
+                </h4>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <input type="text" id="frequentVisitorLastName" placeholder="성 (예: 김)" 
+                               class="input input-bordered">
+                        <input type="text" id="frequentVisitorFirstName" placeholder="이름 (예: 철수)" 
+                               class="input input-bordered">
+                        <button id="addFrequentVisitorBtn" class="btn btn-primary">
+                            <i class="fas fa-plus mr-2"></i>
+                            추가
+                        </button>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        성과 이름을 각각 입력해주세요.
+                    </div>
+                    <div id="frequentVisitorsList" class="space-y-2">
+                        <!-- 자주 방문하는 방문자 목록이 여기에 동적으로 추가됩니다 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GPS 설정 섹션 -->
+        <div class="card bg-white shadow-lg mb-6">
+            <div class="card-body p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <div>
+                        <h4 class="text-lg font-semibold">
+                            <i class="fas fa-map-marker-alt text-primary mr-2"></i>
+                            위치 관리
+                        </h4>
+                        <p class="text-xs text-gray-500 mt-1">기숙사와 공장 위치를 등록하고 관리하세요</p>
+                    </div>
+                    <button id="addLocationBtn" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus mr-1"></i>
+                        위치 추가
+                    </button>
+                </div>
+                
+                <!-- 위치 목록 -->
+                <div id="locationList" class="space-y-3">
+                    <!-- 동적으로 생성될 위치 카드들 -->
+                </div>
+                
+                <div class="flex gap-2 mt-4 flex-wrap">
+                    <button id="saveSettingsBtn" class="btn btn-primary btn-sm">
+                        <i class="fas fa-save mr-1"></i>
+                        모든 위치 저장
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 알림 모달 -->
+    <div id="notificationModal" class="modal">
+        <div class="modal-box">
+            <div class="text-center">
+                <i id="notificationIcon" class="fas fa-info-circle text-6xl text-primary mb-4"></i>
+                <h3 id="notificationTitle" class="text-2xl font-bold mb-4">알림</h3>
+                <p id="notificationMessage" class="text-gray-600 mb-6"></p>
+                <button id="notificationOk" class="btn btn-primary">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>
+

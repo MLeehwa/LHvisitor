@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>테스트 페이지</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+        .test-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <h1>기숙사 방문자 관리 시스템 테스트</h1>
+    
+    <div class="test-box">
+        <h2>기본 기능 테스트</h2>
+        <p>이 페이지가 정상적으로 로드되었다면 서버가 제대로 작동하고 있습니다.</p>
+        <button onclick="testAlert()">알림 테스트</button>
+        <button onclick="testConsole()">콘솔 테스트</button>
+    </div>
+
+    <div class="test-box">
+        <h2>파일 로딩 테스트</h2>
+        <p>아래 버튼을 클릭하여 메인 시스템으로 이동하세요.</p>
+        <button onclick="goToMain()">메인 시스템으로 이동</button>
+    </div>
+
+    <div class="test-box">
+        <h2>GPS 테스트</h2>
+        <p id="gpsStatus">GPS 상태 확인 중...</p>
+        <button onclick="testGPS()">GPS 위치 확인</button>
+    </div>
+
+    <script>
+        function testAlert() {
+            alert('JavaScript가 정상적으로 작동합니다!');
+        }
+
+        function testConsole() {
+            console.log('콘솔 로그 테스트 성공!');
+            alert('콘솔을 확인해주세요 (F12 > Console)');
+        }
+
+        function goToMain() {
+            window.location.href = 'index.html';
+        }
+
+        function testGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        document.getElementById('gpsStatus').innerHTML = 
+                            `GPS 위치 확인됨<br>위도: ${position.coords.latitude}<br>경도: ${position.coords.longitude}`;
+                    },
+                    function(error) {
+                        document.getElementById('gpsStatus').innerHTML = 'GPS 위치 확인 실패: ' + error.message;
+                    }
+                );
+            } else {
+                document.getElementById('gpsStatus').innerHTML = 'GPS를 지원하지 않는 브라우저입니다.';
+            }
+        }
+
+        // 페이지 로드 시 자동으로 GPS 테스트
+        window.onload = function() {
+            testGPS();
+        };
+    </script>
+</body>
+</html>
