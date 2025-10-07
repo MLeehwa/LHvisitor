@@ -30,7 +30,7 @@ class VisitorManagementSystem {
         this.frequentVisitors = []; // 자주 방문하는 방문자 목록
         this.dormitoryCheckinMode = 'manual'; // 'manual' 또는 'registered'
         
-        this.init();
+        // init()은 페이지 로드 시 호출됨
     }
 
     async init() {
@@ -42,7 +42,7 @@ class VisitorManagementSystem {
         this.updateVisitorCounts();
         this.updateCheckoutOptions();
         this.showInitialSetupGuide();
-        this.checkSupabaseConnection();
+        await this.checkSupabaseConnection();
     }
 
     // 이벤트 리스너 설정
@@ -2373,8 +2373,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (window.supabaseClient) {
         console.log('Supabase 클라이언트 초기화 완료, 시스템 시작');
         window.visitorSystem = new VisitorManagementSystem();
+        await window.visitorSystem.init();
     } else {
         console.warn('Supabase 클라이언트 초기화 실패, 시스템을 로컬 모드로 시작');
         window.visitorSystem = new VisitorManagementSystem();
+        await window.visitorSystem.init();
     }
 });

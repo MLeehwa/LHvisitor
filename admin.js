@@ -1423,11 +1423,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Supabase 클라이언트 초기화 완료, 관리자 시스템 시작');
         window.adminSystem = new AdminSystem();
         window.adminManager = window.adminSystem; // 호환성을 위한 별칭
+        await window.adminSystem.init();
         console.log('AdminSystem 초기화 완료');
     } else {
         console.warn('Supabase 클라이언트 초기화 실패, 관리자 시스템을 로컬 모드로 시작');
         window.adminSystem = new AdminSystem();
         window.adminManager = window.adminSystem; // 호환성을 위한 별칭
+        await window.adminSystem.init();
         console.log('AdminSystem 초기화 완료 (로컬 모드)');
     }
 });
