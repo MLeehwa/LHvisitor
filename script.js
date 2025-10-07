@@ -42,6 +42,7 @@ class VisitorManagementSystem {
         this.updateVisitorCounts();
         this.updateCheckoutOptions();
         this.showInitialSetupGuide();
+        this.checkSupabaseConnection();
     }
 
     // 이벤트 리스너 설정
@@ -253,11 +254,11 @@ class VisitorManagementSystem {
             this.hideAllSections();
             this.showMainButtons(); // 메인 버튼들 다시 표시
         } else {
-            // 체크아웃 섹션 열기 (중복 체크아웃 허용으로 항상 열기)
-            // if (this.currentVisitors.length === 0) {
-            //     this.showNotification('Notification', 'No visitors are currently checked in.', 'info');
-            //     return;
-            // }
+            // 체크아웃 섹션 열기 (방문자가 있을 때만)
+            if (this.currentVisitors.length === 0) {
+                this.showNotification('Notification', 'No visitors are currently checked in.', 'info');
+                return;
+            }
 
             this.hideAllSections();
             this.hideMainButtons(); // 메인 버튼들 숨기기
@@ -968,8 +969,8 @@ class VisitorManagementSystem {
 
         const visitor = this.currentVisitors[visitorIndex];
         
-        // 방문자는 제거하지 않고 그대로 유지 (중복 체크아웃 허용)
-        // this.currentVisitors.splice(visitorIndex, 1);
+        // 체크아웃 시 방문자를 목록에서 제거
+        this.currentVisitors.splice(visitorIndex, 1);
         
         // 로그 추가
         this.visitLogs.push({
@@ -979,7 +980,7 @@ class VisitorManagementSystem {
             timestamp: new Date()
         });
 
-        // UI 업데이트 (방문자 수는 변경되지 않음)
+        // UI 업데이트 (방문자 수 감소)
         this.updateVisitorCounts();
         this.updateCheckoutOptions();
         this.saveData();
@@ -1203,10 +1204,10 @@ class VisitorManagementSystem {
 
     // 체크아웃 옵션 업데이트 (검색 방식으로 변경됨)
     updateCheckoutOptions() {
-        // 중복 체크아웃을 허용하므로 체크아웃 버튼은 항상 활성화
         const checkoutBtn = document.getElementById('checkoutConfirmBtn');
         if (checkoutBtn) {
-            checkoutBtn.disabled = false; // 항상 활성화
+            // 현재 방문자가 없으면 체크아웃 버튼 비활성화
+            checkoutBtn.disabled = this.currentVisitors.length === 0;
         }
     }
 
@@ -2077,6 +2078,16 @@ class VisitorManagementSystem {
         this.saveFrequentVisitors();
         this.renderFrequentVisitorsList();
         
+        // Supabase 동기화 강제 실행
+        if (window.supabaseClient && window.supabaseClient.config.sync.enabled) {
+            console.log('자주 방문자 Supabase 동기화 시작...');
+            window.supabaseClient.syncFrequentVisitors().then(() => {
+                console.log('자주 방문자 Supabase 동기화 완료');
+            }).catch(error => {
+                console.error('자주 방문자 Supabase 동기화 실패:', error);
+            });
+        }
+        
         lastNameInput.value = '';
         firstNameInput.value = '';
         this.showNotification('성공', `${fullName}님이 자주 방문자 목록에 추가되었습니다`, 'success');
@@ -2229,6 +2240,57 @@ class VisitorManagementSystem {
                 this.handleOnlineStatus();
             }
         }, 300000); // 5분
+    }
+
+    // Supabase 연결 상태 확인
+    async checkSupabaseConnection() {
+        console.log('=== Supabase 연결 상태 확인 ===');
+        
+        if (!window.supabaseClient) {
+            console.error('❌ Supabase 클라이언트가 초기화되지 않았습니다.');
+            return;
+        }
+        
+        if (!window.supabaseClient.client) {
+            console.error('❌ Supabase 클라이언트가 연결되지 않았습니다.');
+            return;
+        }
+        
+        console.log('✅ Supabase 클라이언트 연결됨');
+        console.log('📊 동기화 설정:', window.supabaseClient.config.sync);
+        
+        // 연결 테스트
+        try {
+            const { data, error } = await window.supabaseClient.client
+                .from('frequent_visitors')
+                .select('count')
+                .limit(1);
+            
+            if (error) {
+                console.error('❌ Supabase 테이블 접근 오류:', error);
+            } else {
+                console.log('✅ frequent_visitors 테이블 접근 성공');
+            }
+        } catch (err) {
+            console.error('❌ Supabase 연결 테스트 실패:', err);
+        }
+        
+        // 현재 로컬 데이터 확인
+        console.log('📝 로컬 자주 방문자 수:', this.frequentVisitors.length);
+        console.log('💾 로컬 스토리지 키:', window.supabaseClient.config.storageKeys.frequentVisitors);
+        
+        // Supabase에서 데이터 로드 시도
+        if (window.supabaseClient.config.sync.enabled) {
+            console.log('🔄 Supabase에서 데이터 로드 시도...');
+            try {
+                await window.supabaseClient.loadFromDatabase();
+                console.log('✅ Supabase에서 데이터 로드 완료');
+            } catch (err) {
+                console.error('❌ Supabase 데이터 로드 실패:', err);
+            }
+        }
+        
+        console.log('=== Supabase 연결 상태 확인 완료 ===');
     }
 }
 
