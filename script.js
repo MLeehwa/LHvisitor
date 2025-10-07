@@ -30,11 +30,7 @@ class VisitorManagementSystem {
         this.frequentVisitors = []; // 자주 방문하는 방문자 목록
         this.dormitoryCheckinMode = 'manual'; // 'manual' 또는 'registered'
         
-        // init()은 페이지 로드 시 호출됨
-    }
-
-    async init() {
-        await this.loadData();
+        // 기본 초기화 (동기적)
         this.setupEventListeners();
         this.setupTouchGestures();
         this.setupOnlineStatusMonitoring();
@@ -42,7 +38,26 @@ class VisitorManagementSystem {
         this.updateVisitorCounts();
         this.updateCheckoutOptions();
         this.showInitialSetupGuide();
-        await this.checkSupabaseConnection();
+    }
+
+    // Supabase에서 데이터 로드 (비동기)
+    async loadDataFromSupabase() {
+        console.log('=== Supabase 데이터 로드 시작 ===');
+        
+        if (!window.supabaseClient || !window.supabaseClient.client) {
+            console.warn('Supabase 클라이언트가 없습니다. 로컬 데이터만 사용합니다.');
+            this.loadData();
+            return;
+        }
+        
+        try {
+            await window.supabaseClient.loadFromDatabase();
+            console.log('✅ Supabase에서 데이터 로드 완료');
+        } catch (error) {
+            console.error('❌ Supabase 데이터 로드 실패:', error);
+            console.log('로컬 데이터로 폴백합니다.');
+            this.loadData();
+        }
     }
 
     // 이벤트 리스너 설정
@@ -1959,8 +1974,8 @@ class VisitorManagementSystem {
         }
     }
 
-    // 데이터 로드
-    async loadData() {
+    // 데이터 로드 (로컬 스토리지)
+    loadData() {
         const savedVisitors = localStorage.getItem('visitorSystem_currentVisitors');
         const savedLogs = localStorage.getItem('visitorSystem_visitLogs');
         const savedSettings = localStorage.getItem('visitorSystem_gpsSettings');
@@ -2022,22 +2037,16 @@ class VisitorManagementSystem {
             }
         }
 
-        // 자주 방문자 데이터 로드 (Supabase에서만)
-        console.log('=== 자주 방문자 데이터 로드 시작 ===');
-        console.log('window.supabaseClient 존재:', !!window.supabaseClient);
-        console.log('window.supabaseClient.client 존재:', !!(window.supabaseClient && window.supabaseClient.client));
-        console.log('동기화 설정:', window.supabaseClient ? window.supabaseClient.config.sync : '없음');
-        
-        if (window.supabaseClient && window.supabaseClient.config.sync.enabled) {
+        // 자주 방문자 데이터 로드 (로컬 스토리지)
+        const savedFrequentVisitors = localStorage.getItem('visitorSystemFrequentVisitors');
+        if (savedFrequentVisitors) {
             try {
-                console.log('✅ Supabase에서 데이터 로드 시도...');
-                await window.supabaseClient.loadFromDatabase();
-                console.log('✅ Supabase에서 자주 방문자 데이터 로드 완료');
+                this.frequentVisitors = JSON.parse(savedFrequentVisitors);
+                console.log('로컬에서 자주 방문자 데이터 로드 완료:', this.frequentVisitors.length, '명');
             } catch (error) {
-                console.error('❌ Supabase에서 자주 방문자 데이터 로드 실패:', error);
+                console.error('자주 방문자 데이터 로드 오류:', error);
+                this.frequentVisitors = [];
             }
-        } else {
-            console.warn('⚠️ Supabase 클라이언트가 없거나 동기화가 비활성화되어 있습니다.');
         }
     }
 
@@ -2359,24 +2368,25 @@ class VisitorManagementSystem {
 }
 
 // 페이지 로드 시 시스템 초기화
-document.addEventListener('DOMContentLoaded', async () => {
-    // Supabase 클라이언트 초기화를 기다림
-    let retryCount = 0;
-    const maxRetries = 10;
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('=== 시스템 초기화 시작 ===');
     
-    while (!window.supabaseClient && retryCount < maxRetries) {
-        console.log(`Supabase 클라이언트 초기화 대기 중... (${retryCount + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        retryCount++;
-    }
+    // 시스템 객체 생성
+    window.visitorSystem = new VisitorManagementSystem();
     
-    if (window.supabaseClient) {
-        console.log('Supabase 클라이언트 초기화 완료, 시스템 시작');
-        window.visitorSystem = new VisitorManagementSystem();
-        await window.visitorSystem.init();
-    } else {
-        console.warn('Supabase 클라이언트 초기화 실패, 시스템을 로컬 모드로 시작');
-        window.visitorSystem = new VisitorManagementSystem();
-        await window.visitorSystem.init();
-    }
+    // Supabase 클라이언트가 준비되면 데이터 로드
+    const checkSupabaseAndLoad = () => {
+        if (window.supabaseClient && window.supabaseClient.client) {
+            console.log('Supabase 클라이언트 준비됨, 데이터 로드 시작');
+            window.visitorSystem.loadDataFromSupabase();
+        } else {
+            console.log('Supabase 클라이언트 대기 중...');
+            setTimeout(checkSupabaseAndLoad, 100);
+        }
+    };
+    
+    // 즉시 체크 시작
+    checkSupabaseAndLoad();
+    
+    console.log('=== 시스템 초기화 완료 ===');
 });

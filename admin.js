@@ -1303,8 +1303,28 @@ class AdminSystem {
         }
     }
 
-    // 데이터 로드
-    async loadData() {
+    // Supabase에서 데이터 로드 (비동기)
+    async loadDataFromSupabase() {
+        console.log('=== 관리자 Supabase 데이터 로드 시작 ===');
+        
+        if (!window.supabaseClient || !window.supabaseClient.client) {
+            console.warn('Supabase 클라이언트가 없습니다. 로컬 데이터만 사용합니다.');
+            this.loadData();
+            return;
+        }
+        
+        try {
+            await window.supabaseClient.loadFromDatabase();
+            console.log('✅ 관리자 Supabase에서 데이터 로드 완료');
+        } catch (error) {
+            console.error('❌ 관리자 Supabase 데이터 로드 실패:', error);
+            console.log('로컬 데이터로 폴백합니다.');
+            this.loadData();
+        }
+    }
+
+    // 데이터 로드 (로컬 스토리지)
+    loadData() {
         const savedVisitors = localStorage.getItem('visitorSystem_currentVisitors');
         const savedLogs = localStorage.getItem('visitorSystem_visitLogs');
         const savedLocations = localStorage.getItem('visitorSystemLocations');
@@ -1326,34 +1346,18 @@ class AdminSystem {
             }));
         }
 
-        // 위치 데이터 로드 (데이터베이스 우선, 없으면 localStorage)
-        if (window.supabaseClient) {
-            try {
-                await this.loadLocationsFromDatabase();
-            } catch (error) {
-                console.error('데이터베이스에서 위치 로드 실패, localStorage 사용:', error);
-                this.loadLocationsFromLocalStorage();
-            }
-        } else {
-            this.loadLocationsFromLocalStorage();
-        }
+        // 위치 데이터 로드 (로컬 스토리지)
+        this.loadLocationsFromLocalStorage();
 
-        // 자주 방문자 데이터 로드 (Supabase에서만)
-        console.log('=== 관리자 자주 방문자 데이터 로드 시작 ===');
-        console.log('window.supabaseClient 존재:', !!window.supabaseClient);
-        console.log('window.supabaseClient.client 존재:', !!(window.supabaseClient && window.supabaseClient.client));
-        console.log('동기화 설정:', window.supabaseClient ? window.supabaseClient.config.sync : '없음');
-        
-        if (window.supabaseClient && window.supabaseClient.config.sync.enabled) {
+        // 자주 방문자 데이터 로드 (로컬 스토리지)
+        if (savedFrequentVisitors) {
             try {
-                console.log('✅ Supabase에서 데이터 로드 시도...');
-                await window.supabaseClient.loadFromDatabase();
-                console.log('✅ Supabase에서 자주 방문자 데이터 로드 완료');
+                this.frequentVisitors = JSON.parse(savedFrequentVisitors);
+                console.log('로컬에서 자주 방문자 데이터 로드 완료:', this.frequentVisitors.length, '명');
             } catch (error) {
-                console.error('❌ Supabase에서 자주 방문자 데이터 로드 실패:', error);
+                console.error('자주 방문자 데이터 로드 오류:', error);
+                this.frequentVisitors = [];
             }
-        } else {
-            console.warn('⚠️ Supabase 클라이언트가 없거나 동기화가 비활성화되어 있습니다.');
         }
     }
 
@@ -1408,29 +1412,27 @@ class AdminSystem {
 }
 
 // 페이지 로드 시 관리자 시스템 초기화
-document.addEventListener('DOMContentLoaded', async () => {
-    // Supabase 클라이언트 초기화를 기다림
-    let retryCount = 0;
-    const maxRetries = 10;
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('=== 관리자 시스템 초기화 시작 ===');
     
-    while (!window.supabaseClient && retryCount < maxRetries) {
-        console.log(`Supabase 클라이언트 초기화 대기 중... (${retryCount + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        retryCount++;
-    }
+    // 관리자 시스템 객체 생성
+    window.adminSystem = new AdminSystem();
+    window.adminManager = window.adminSystem; // 호환성을 위한 별칭
     
-    if (window.supabaseClient) {
-        console.log('Supabase 클라이언트 초기화 완료, 관리자 시스템 시작');
-        window.adminSystem = new AdminSystem();
-        window.adminManager = window.adminSystem; // 호환성을 위한 별칭
-        await window.adminSystem.init();
-        console.log('AdminSystem 초기화 완료');
-    } else {
-        console.warn('Supabase 클라이언트 초기화 실패, 관리자 시스템을 로컬 모드로 시작');
-        window.adminSystem = new AdminSystem();
-        window.adminManager = window.adminSystem; // 호환성을 위한 별칭
-        await window.adminSystem.init();
-        console.log('AdminSystem 초기화 완료 (로컬 모드)');
-    }
+    // Supabase 클라이언트가 준비되면 데이터 로드
+    const checkSupabaseAndLoad = () => {
+        if (window.supabaseClient && window.supabaseClient.client) {
+            console.log('Supabase 클라이언트 준비됨, 관리자 데이터 로드 시작');
+            window.adminSystem.loadDataFromSupabase();
+        } else {
+            console.log('Supabase 클라이언트 대기 중...');
+            setTimeout(checkSupabaseAndLoad, 100);
+        }
+    };
+    
+    // 즉시 체크 시작
+    checkSupabaseAndLoad();
+    
+    console.log('=== 관리자 시스템 초기화 완료 ===');
 });
 
