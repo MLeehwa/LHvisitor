@@ -1339,13 +1339,21 @@ class AdminSystem {
         }
 
         // 자주 방문자 데이터 로드 (Supabase에서만)
+        console.log('=== 관리자 자주 방문자 데이터 로드 시작 ===');
+        console.log('window.supabaseClient 존재:', !!window.supabaseClient);
+        console.log('window.supabaseClient.client 존재:', !!(window.supabaseClient && window.supabaseClient.client));
+        console.log('동기화 설정:', window.supabaseClient ? window.supabaseClient.config.sync : '없음');
+        
         if (window.supabaseClient && window.supabaseClient.config.sync.enabled) {
             try {
+                console.log('✅ Supabase에서 데이터 로드 시도...');
                 await window.supabaseClient.loadFromDatabase();
-                console.log('Supabase에서 자주 방문자 데이터 로드 완료');
+                console.log('✅ Supabase에서 자주 방문자 데이터 로드 완료');
             } catch (error) {
-                console.error('Supabase에서 자주 방문자 데이터 로드 실패:', error);
+                console.error('❌ Supabase에서 자주 방문자 데이터 로드 실패:', error);
             }
+        } else {
+            console.warn('⚠️ Supabase 클라이언트가 없거나 동기화가 비활성화되어 있습니다.');
         }
     }
 

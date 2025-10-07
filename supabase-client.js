@@ -8,20 +8,29 @@ class SupabaseClient {
     
     // 초기화
     init() {
+        console.log('=== Supabase 클라이언트 초기화 시작 ===');
+        console.log('window.dbConfig 존재:', !!this.config);
+        console.log('동기화 설정:', this.config.sync);
+        
         // Supabase가 로드될 때까지 기다림
         this.waitForSupabase().then(() => {
+            console.log('✅ Supabase CDN 로딩 완료, 클라이언트 생성 시도...');
             this.client = this.config.initSupabase();
             console.log('Supabase 클라이언트 초기화:', this.client ? '성공' : '실패');
-            console.log('동기화 설정:', this.config.sync);
             
-            if (this.client && this.config.sync.enabled) {
-                this.startAutoSync();
-                console.log('Supabase 자동 동기화 시작');
+            if (this.client) {
+                console.log('✅ Supabase 클라이언트 생성 성공');
+                if (this.config.sync.enabled) {
+                    this.startAutoSync();
+                    console.log('✅ Supabase 자동 동기화 시작');
+                } else {
+                    console.warn('⚠️ Supabase 동기화가 비활성화되어 있습니다');
+                }
             } else {
-                console.warn('Supabase 동기화가 비활성화되어 있습니다');
+                console.error('❌ Supabase 클라이언트 생성 실패');
             }
         }).catch(error => {
-            console.error('Supabase 초기화 오류:', error);
+            console.error('❌ Supabase 초기화 오류:', error);
         });
     }
     
@@ -280,13 +289,17 @@ class SupabaseClient {
     
     // 데이터베이스에서 데이터 로드
     async loadFromDatabase() {
+        console.log('=== Supabase 데이터 로드 시작 ===');
+        console.log('Supabase 클라이언트 상태:', this.client ? '초기화됨' : '초기화 안됨');
+        console.log('동기화 설정:', this.config.sync);
+        
         if (!this.client) {
-            console.error('Supabase 클라이언트가 초기화되지 않았습니다');
+            console.error('❌ Supabase 클라이언트가 초기화되지 않았습니다');
             return;
         }
         
         try {
-            console.log('Supabase에서 데이터 로드 시작...');
+            console.log('✅ Supabase에서 데이터 로드 시작...');
             
             // 자주 방문자 로드
             console.log('자주 방문자 데이터 로드 중...');
