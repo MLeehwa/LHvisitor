@@ -292,14 +292,23 @@ class SupabaseClient {
                 console.log('변환된 자주 방문자 데이터:', convertedFrequentVisitors);
                 
                 if (window.visitorSystem) {
+                    console.log('메인 시스템에 자주 방문자 데이터 할당 중...');
                     window.visitorSystem.frequentVisitors = convertedFrequentVisitors;
+                    console.log('메인 시스템 자주 방문자 데이터:', window.visitorSystem.frequentVisitors);
                     window.visitorSystem.renderFrequentVisitorsList();
                     console.log('메인 시스템에 자주 방문자 데이터 할당 완료');
+                } else {
+                    console.warn('window.visitorSystem이 없습니다.');
                 }
+                
                 if (window.adminSystem) {
+                    console.log('관리자 시스템에 자주 방문자 데이터 할당 중...');
                     window.adminSystem.frequentVisitors = convertedFrequentVisitors;
+                    console.log('관리자 시스템 자주 방문자 데이터:', window.adminSystem.frequentVisitors);
                     window.adminSystem.renderFrequentVisitorsList();
                     console.log('관리자 시스템에 자주 방문자 데이터 할당 완료');
+                } else {
+                    console.warn('window.adminSystem이 없습니다.');
                 }
             }
             

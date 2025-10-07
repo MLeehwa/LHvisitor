@@ -976,6 +976,9 @@ class AdminSystem {
             
             container.appendChild(item);
         });
+        
+        // 로그 개수 업데이트
+        this.updateLogCount();
     }
 
     // 필터된 로그 가져오기 (방문자별 그룹화)
