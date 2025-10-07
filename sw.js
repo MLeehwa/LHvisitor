@@ -1,5 +1,5 @@
 // Service Worker for PWA functionality
-const CACHE_NAME = 'visitor-system-v1';
+const CACHE_NAME = 'visitor-system-v2';
 const urlsToCache = [
   '/',
   '/index.html',
