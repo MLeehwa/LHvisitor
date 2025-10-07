@@ -341,7 +341,11 @@ class SupabaseClient {
                 };
                 
                 assignToSystem('메인 시스템', window.visitorSystem);
-                assignToSystem('관리자 시스템', window.adminSystem);
+                if (window.adminSystem) {
+                    assignToSystem('관리자 시스템', window.adminSystem);
+                } else {
+                    console.log('관리자 시스템이 아직 초기화되지 않았습니다. (정상적인 상황일 수 있음)');
+                }
             }
             
             // 방문자 데이터 로드

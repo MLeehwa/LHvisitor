@@ -1144,6 +1144,10 @@ class VisitorManagementSystem {
     // 방문자 목록 업데이트 (관리자용) - 일일 리셋 시스템 적용
     updateVisitorList() {
         const container = document.getElementById('visitorList');
+        if (!container) {
+            console.log('visitorList 컨테이너를 찾을 수 없습니다. 관리자 모드가 아닐 수 있습니다.');
+            return;
+        }
         container.innerHTML = '';
 
         // 현재 날짜 기준으로 24시간 이내의 방문자만 표시
@@ -2141,6 +2145,7 @@ class VisitorManagementSystem {
         const container = document.getElementById('frequentVisitorsList');
         if (!container) {
             console.error('❌ frequentVisitorsList 컨테이너를 찾을 수 없습니다.');
+            console.log('현재 페이지의 모든 요소들:', document.querySelectorAll('[id]'));
             return;
         }
         
