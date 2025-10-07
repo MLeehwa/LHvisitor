@@ -798,7 +798,7 @@ class VisitorManagementSystem {
                     firstName: firstName,
                     fullName: `${lastName} ${firstName}`,
                     locationName: currentLocationInfo ? currentLocationInfo.name : '기숙사',
-                    checkinTime: new Date(),
+                    checkinTime: new Date().toISOString(),
                     location: this.currentLocation
                 };
             } else if (category === 'factory') {
@@ -827,7 +827,7 @@ class VisitorManagementSystem {
                     phone: phone,
                     purpose: purpose,
                     locationName: currentLocationInfo ? currentLocationInfo.name : '공장',
-                    checkinTime: new Date(),
+                    checkinTime: new Date().toISOString(),
                     location: this.currentLocation
                 };
             }
@@ -836,6 +836,7 @@ class VisitorManagementSystem {
             this.currentVisitors.push(visitorData);
             this.visitLogs.push({
                 ...visitorData,
+                name: visitorData.fullName, // name 필드 명시적 설정
                 action: 'checkin',
                 timestamp: new Date()
             });
@@ -975,6 +976,7 @@ class VisitorManagementSystem {
         // 로그 추가
         this.visitLogs.push({
             ...visitor,
+            name: visitor.fullName, // name 필드 명시적 설정
             action: 'checkout',
             checkoutTime: new Date(),
             timestamp: new Date()
@@ -1168,7 +1170,7 @@ class VisitorManagementSystem {
             card.innerHTML = `
                 <div class="card-body p-4">
                     <div class="flex items-center justify-between mb-2">
-                        <h3 class="card-title text-lg">${visitor.fullName || visitor.name}</h3>
+                        <h3 class="card-title text-lg">${visitor.fullName || visitor.name || `${visitor.lastName || ''} ${visitor.firstName || ''}`.trim() || 'Unknown Visitor'}</h3>
                         <div class="badge ${visitor.category === 'dormitory' ? 'badge-primary' : 'badge-warning'}">
                             ${visitor.category === 'dormitory' ? '기숙사' : '공장'}
                 </div>
@@ -1855,14 +1857,26 @@ class VisitorManagementSystem {
 
     // 시간 포맷팅
     formatTime(date) {
-        return new Date(date).toLocaleString('ko-KR', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        });
+        if (!date) return '-';
+        
+        try {
+            const dateObj = new Date(date);
+            if (isNaN(dateObj.getTime())) {
+                return '-';
+            }
+            
+            return dateObj.toLocaleString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        } catch (error) {
+            console.error('시간 포맷팅 오류:', error, date);
+            return '-';
+        }
     }
 
     // 데이터 저장

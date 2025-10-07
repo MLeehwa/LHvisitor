@@ -784,10 +784,31 @@ class AdminSystem {
 
     // 자주 방문자 목록 렌더링
     renderFrequentVisitorsList() {
+        console.log('자주 방문자 목록 렌더링 시작...');
+        console.log('현재 자주 방문자 수:', this.frequentVisitors.length);
+        console.log('자주 방문자 데이터:', this.frequentVisitors);
+        
         const container = document.getElementById('frequentVisitorsList');
+        if (!container) {
+            console.error('frequentVisitorsList 컨테이너를 찾을 수 없습니다.');
+            return;
+        }
+        
         container.innerHTML = '';
 
-        this.frequentVisitors.forEach(visitor => {
+        if (this.frequentVisitors.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-users text-4xl text-gray-300 mb-4"></i>
+                    <p>등록된 자주 방문자가 없습니다.</p>
+                    <p class="text-sm text-gray-400 mt-2">위의 폼을 사용하여 자주 방문자를 추가해보세요.</p>
+                </div>
+            `;
+            return;
+        }
+
+        this.frequentVisitors.forEach((visitor, index) => {
+            console.log(`자주 방문자 ${index + 1} 렌더링:`, visitor);
             const visitorCard = document.createElement('div');
             visitorCard.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
             visitorCard.innerHTML = `
@@ -803,6 +824,8 @@ class AdminSystem {
             `;
             container.appendChild(visitorCard);
         });
+        
+        console.log('자주 방문자 목록 렌더링 완료');
     }
 
     // 자주 방문자 삭제
@@ -829,6 +852,7 @@ class AdminSystem {
         console.log('Total logs:', this.visitLogs.length);
         console.log('Filtered logs:', filteredLogs.length);
         console.log('Sample log:', filteredLogs[0]);
+        console.log('All logs:', this.visitLogs);
 
         if (filteredLogs.length === 0) {
             container.innerHTML = `
@@ -863,8 +887,8 @@ class AdminSystem {
                 <div class="flex items-center space-x-2 w-32">
                     <i class="fas fa-info-circle text-gray-500"></i>
                     <div class="text-center">
-                        <div>Status</div>
-                        <div class="text-xs text-gray-500">(상태)</div>
+                        <div>Action</div>
+                        <div class="text-xs text-gray-500">(액션)</div>
                     </div>
                 </div>
                 <div class="flex items-center space-x-2 w-40">
@@ -875,59 +899,51 @@ class AdminSystem {
                     </div>
                 </div>
                 <div class="flex items-center space-x-2 w-40">
-                    <i class="fas fa-sign-in-alt text-gray-500"></i>
+                    <i class="fas fa-clock text-gray-500"></i>
                     <div class="text-center">
-                        <div>Check-in Time</div>
-                        <div class="text-xs text-gray-500">(체크인)</div>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-2 w-40">
-                    <i class="fas fa-sign-out-alt text-gray-500"></i>
-                    <div class="text-center">
-                        <div>Check-out Time</div>
-                        <div class="text-xs text-gray-500">(체크아웃)</div>
+                        <div>Time</div>
+                        <div class="text-xs text-gray-500">(시간)</div>
                     </div>
                 </div>
             </div>
         `;
         container.appendChild(header);
 
-        filteredLogs.forEach((visitor, index) => {
+        filteredLogs.forEach((log, index) => {
             const item = document.createElement('div');
             item.className = 'flex items-center justify-between p-3 border-b border-gray-200 hover:bg-gray-50';
             
-            const categoryText = visitor.category === 'dormitory' ? 'Dormitory (기숙사)' : 'Factory (공장)';
-            const locationName = visitor.locationName || (visitor.category === 'dormitory' ? 'Dormitory (기숙사)' : 'Factory (공장)');
+            const categoryText = log.category === 'dormitory' ? 'Dormitory (기숙사)' : 'Factory (공장)';
+            const locationName = log.locationName || (log.category === 'dormitory' ? 'Dormitory (기숙사)' : 'Factory (공장)');
+            const visitorName = log.name || log.fullName || log.visitorName || `${log.lastName || ''} ${log.firstName || ''}`.trim() || 'Unknown Visitor';
             
-            // 체크인/체크아웃 상태 표시
+            // 액션 상태 표시
             let statusText = '';
             let statusColor = '';
-            if (visitor.checkinTime && visitor.checkoutTime) {
-                statusText = 'Completed (완료)';
+            if (log.action === 'checkin') {
+                statusText = 'Check In (체크인)';
                 statusColor = 'badge-success';
-            } else if (visitor.checkinTime) {
-                statusText = 'Checked In (체크인됨)';
-                statusColor = 'badge-info';
-            } else if (visitor.checkoutTime) {
-                statusText = 'Checked Out (체크아웃됨)';
+            } else if (log.action === 'checkout') {
+                statusText = 'Check Out (체크아웃)';
                 statusColor = 'badge-warning';
             } else {
                 statusText = 'Unknown (알 수 없음)';
                 statusColor = 'badge-neutral';
             }
             
-            // 체크인/체크아웃 시간 처리
-            const checkinTime = visitor.checkinTime ? this.formatTime(visitor.checkinTime) : '-';
-            const checkoutTime = visitor.checkoutTime ? this.formatTime(visitor.checkoutTime) : '-';
+            // 시간 처리
+            const timestamp = log.timestamp ? this.formatTime(log.timestamp) : '-';
+            const checkinTime = log.checkinTime ? this.formatTime(log.checkinTime) : '-';
+            const checkoutTime = log.checkoutTime ? this.formatTime(log.checkoutTime) : '-';
 
             item.innerHTML = `
                 <div class="flex items-center space-x-4 flex-1">
                     <div class="flex items-center space-x-2 w-48">
-                        <i class="fas ${visitor.category === 'dormitory' ? 'fa-home' : 'fa-industry'} ${visitor.category === 'dormitory' ? 'text-blue-500' : 'text-orange-500'}"></i>
-                        <span class="font-semibold text-gray-900 truncate">${visitor.visitorName}</span>
+                        <i class="fas ${log.category === 'dormitory' ? 'fa-home' : 'fa-industry'} ${log.category === 'dormitory' ? 'text-blue-500' : 'text-orange-500'}"></i>
+                        <span class="font-semibold text-gray-900 truncate">${visitorName}</span>
                     </div>
                     <div class="w-32">
-                        <span class="badge badge-sm ${visitor.category === 'dormitory' ? 'badge-primary' : 'badge-warning'}">
+                        <span class="badge badge-sm ${log.category === 'dormitory' ? 'badge-primary' : 'badge-warning'}">
                             ${categoryText}
                         </span>
                     </div>
@@ -941,12 +957,8 @@ class AdminSystem {
                         ${locationName}
                     </div>
                     <div class="text-sm text-gray-600 w-40">
-                        <i class="fas fa-sign-in-alt mr-1"></i>
-                        ${checkinTime}
-                    </div>
-                    <div class="text-sm text-gray-600 w-40">
-                        <i class="fas fa-sign-out-alt mr-1"></i>
-                        ${checkoutTime}
+                        <i class="fas fa-clock mr-1"></i>
+                        ${timestamp}
                     </div>
                 </div>
             `;
@@ -1021,23 +1033,24 @@ class AdminSystem {
             });
         }
         
-        // 방문자별로 그룹화
-        const groupedLogs = this.groupLogsByVisitor(logs);
-        
-        // 정렬
+        // 정렬 (그룹화하지 않고 개별 로그 표시)
         const sortFilter = document.getElementById('logSortFilter').value;
         switch (sortFilter) {
             case 'newest':
-                groupedLogs.sort((a, b) => new Date(b.checkinTime || b.timestamp) - new Date(a.checkinTime || a.timestamp));
+                logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                 break;
             case 'oldest':
-                groupedLogs.sort((a, b) => new Date(a.checkinTime || a.timestamp) - new Date(b.checkinTime || b.timestamp));
+                logs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
                 break;
             case 'name':
-                groupedLogs.sort((a, b) => (a.visitorName || '').localeCompare(b.visitorName || ''));
+                logs.sort((a, b) => {
+                    const nameA = a.name || a.fullName || `${a.lastName || ''} ${a.firstName || ''}`;
+                    const nameB = b.name || b.fullName || `${b.lastName || ''} ${b.firstName || ''}`;
+                    return nameA.localeCompare(nameB);
+                });
                 break;
             case 'location':
-                groupedLogs.sort((a, b) => {
+                logs.sort((a, b) => {
                     const locationA = a.locationName || (a.category === 'dormitory' ? '기숙사' : '공장');
                     const locationB = b.locationName || (b.category === 'dormitory' ? '기숙사' : '공장');
                     return locationA.localeCompare(locationB);
@@ -1049,10 +1062,10 @@ class AdminSystem {
         const limitFilter = document.getElementById('logLimitFilter').value;
         if (limitFilter !== 'all') {
             const limit = parseInt(limitFilter);
-            return groupedLogs.slice(0, limit);
+            return logs.slice(0, limit);
         }
         
-        return groupedLogs;
+        return logs;
     }
 
     // 방문자별로 로그 그룹화
@@ -1254,14 +1267,26 @@ class AdminSystem {
 
     // 시간 포맷팅
     formatTime(date) {
-        return new Date(date).toLocaleString('ko-KR', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        });
+        if (!date) return '-';
+        
+        try {
+            const dateObj = new Date(date);
+            if (isNaN(dateObj.getTime())) {
+                return '-';
+            }
+            
+            return dateObj.toLocaleString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        } catch (error) {
+            console.error('시간 포맷팅 오류:', error, date);
+            return '-';
+        }
     }
 
     // 데이터 로드
@@ -1302,10 +1327,15 @@ class AdminSystem {
         if (savedFrequentVisitors) {
             try {
                 this.frequentVisitors = JSON.parse(savedFrequentVisitors);
+                console.log('자주 방문자 데이터 로드 완료:', this.frequentVisitors.length, '명');
+                console.log('로드된 자주 방문자:', this.frequentVisitors);
             } catch (error) {
                 console.error('자주 방문자 데이터 로드 오류:', error);
                 this.frequentVisitors = [];
             }
+        } else {
+            console.log('저장된 자주 방문자 데이터가 없습니다.');
+            this.frequentVisitors = [];
         }
     }
 
