@@ -33,8 +33,8 @@ class VisitorManagementSystem {
         this.init();
     }
 
-    init() {
-        this.loadData();
+    async init() {
+        await this.loadData();
         this.setupEventListeners();
         this.setupTouchGestures();
         this.setupOnlineStatusMonitoring();
@@ -1960,7 +1960,7 @@ class VisitorManagementSystem {
     }
 
     // 데이터 로드
-    loadData() {
+    async loadData() {
         const savedVisitors = localStorage.getItem('visitorSystem_currentVisitors');
         const savedLogs = localStorage.getItem('visitorSystem_visitLogs');
         const savedSettings = localStorage.getItem('visitorSystem_gpsSettings');
