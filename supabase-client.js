@@ -8,9 +8,19 @@ class SupabaseClient {
     
     // 초기화
     init() {
-        this.client = this.config.initSupabase();
-        if (this.client && this.config.sync.enabled) {
-            this.startAutoSync();
+        try {
+            this.client = this.config.initSupabase();
+            console.log('Supabase 클라이언트 초기화:', this.client ? '성공' : '실패');
+            console.log('동기화 설정:', this.config.sync);
+            
+            if (this.client && this.config.sync.enabled) {
+                this.startAutoSync();
+                console.log('Supabase 자동 동기화 시작');
+            } else {
+                console.warn('Supabase 동기화가 비활성화되어 있습니다');
+            }
+        } catch (error) {
+            console.error('Supabase 초기화 오류:', error);
         }
     }
     
@@ -190,10 +200,21 @@ class SupabaseClient {
     
     // 자주 방문자 동기화
     async syncFrequentVisitors() {
-        if (!this.client) return;
+        if (!this.client) {
+            console.error('Supabase 클라이언트가 초기화되지 않았습니다');
+            return;
+        }
         
         try {
-            const frequentVisitors = JSON.parse(localStorage.getItem(this.config.storageKeys.frequentVisitors) || '[]');
+            // 현재 시스템에서 자주 방문자 데이터 가져오기
+            let frequentVisitors = [];
+            if (window.visitorSystem) {
+                frequentVisitors = window.visitorSystem.frequentVisitors;
+            } else if (window.adminSystem) {
+                frequentVisitors = window.adminSystem.frequentVisitors;
+            }
+            
+            console.log('자주 방문자 동기화 시작:', frequentVisitors.length, '개');
             
             for (const visitor of frequentVisitors) {
                 const { data, error } = await this.client
@@ -210,6 +231,8 @@ class SupabaseClient {
                 
                 if (error) {
                     console.error('자주 방문자 동기화 오류:', error);
+                } else {
+                    console.log('자주 방문자 동기화 성공:', visitor.name);
                 }
             }
             
@@ -237,49 +260,94 @@ class SupabaseClient {
     
     // 데이터베이스에서 데이터 로드
     async loadFromDatabase() {
-        if (!this.client) return;
+        if (!this.client) {
+            console.error('Supabase 클라이언트가 초기화되지 않았습니다');
+            return;
+        }
         
         try {
+            console.log('Supabase에서 데이터 로드 시작...');
+            
+            // 자주 방문자 로드
+            console.log('자주 방문자 데이터 로드 중...');
+            const { data: frequentVisitors, error: frequentVisitorsError } = await this.client
+                .from(this.config.tables.frequentVisitors)
+                .select('*');
+            
+            if (frequentVisitorsError) {
+                console.error('자주 방문자 데이터 로드 오류:', frequentVisitorsError);
+            } else {
+                console.log('자주 방문자 데이터 로드 성공:', frequentVisitors?.length || 0, '개');
+                if (window.visitorSystem) {
+                    window.visitorSystem.frequentVisitors = frequentVisitors || [];
+                    window.visitorSystem.renderFrequentVisitorsList();
+                }
+                if (window.adminSystem) {
+                    window.adminSystem.frequentVisitors = frequentVisitors || [];
+                    window.adminSystem.renderFrequentVisitorsList();
+                }
+            }
+            
             // 방문자 데이터 로드
+            console.log('현재 방문자 데이터 로드 중...');
             const { data: visitors, error: visitorsError } = await this.client
                 .from(this.config.tables.visitors)
                 .select('*');
             
-            if (!visitorsError && visitors) {
-                localStorage.setItem(this.config.storageKeys.currentVisitors, JSON.stringify(visitors));
+            if (visitorsError) {
+                console.error('현재 방문자 데이터 로드 오류:', visitorsError);
+            } else {
+                console.log('현재 방문자 데이터 로드 성공:', visitors?.length || 0, '개');
+                if (window.visitorSystem) {
+                    window.visitorSystem.currentVisitors = visitors || [];
+                    window.visitorSystem.updateVisitorList();
+                }
             }
             
             // 방문 로그 로드
+            console.log('방문 로그 데이터 로드 중...');
             const { data: logs, error: logsError } = await this.client
                 .from(this.config.tables.visitLogs)
                 .select('*')
                 .order('timestamp', { ascending: false });
             
-            if (!logsError && logs) {
-                localStorage.setItem(this.config.storageKeys.visitLogs, JSON.stringify(logs));
+            if (logsError) {
+                console.error('방문 로그 데이터 로드 오류:', logsError);
+            } else {
+                console.log('방문 로그 데이터 로드 성공:', logs?.length || 0, '개');
+                if (window.visitorSystem) {
+                    window.visitorSystem.visitLogs = logs || [];
+                    window.visitorSystem.updateLogList();
+                }
+                if (window.adminSystem) {
+                    window.adminSystem.visitLogs = logs || [];
+                    window.adminSystem.updateLogList();
+                }
             }
             
             // 위치 데이터 로드
+            console.log('위치 데이터 로드 중...');
             const { data: locations, error: locationsError } = await this.client
                 .from(this.config.tables.locations)
                 .select('*');
             
-            if (!locationsError && locations) {
-                localStorage.setItem(this.config.storageKeys.locations, JSON.stringify(locations));
+            if (locationsError) {
+                console.error('위치 데이터 로드 오류:', locationsError);
+            } else {
+                console.log('위치 데이터 로드 성공:', locations?.length || 0, '개');
+                if (window.visitorSystem) {
+                    window.visitorSystem.locations = locations || [];
+                    window.visitorSystem.renderLocationList();
+                }
+                if (window.adminSystem) {
+                    window.adminSystem.locations = locations || [];
+                    window.adminSystem.renderLocationList();
+                }
             }
             
-            // 자주 방문자 로드
-            const { data: frequentVisitors, error: frequentVisitorsError } = await this.client
-                .from(this.config.tables.frequentVisitors)
-                .select('*');
-            
-            if (!frequentVisitorsError && frequentVisitors) {
-                localStorage.setItem(this.config.storageKeys.frequentVisitors, JSON.stringify(frequentVisitors));
-            }
-            
-            console.log('데이터베이스에서 데이터 로드 완료');
+            console.log('Supabase에서 모든 데이터 로드 완료');
         } catch (error) {
-            console.error('데이터베이스 로드 중 오류:', error);
+            console.error('Supabase 데이터 로드 중 오류:', error);
         }
     }
     
