@@ -217,6 +217,7 @@ class SupabaseClient {
             console.log('자주 방문자 동기화 시작:', frequentVisitors.length, '개');
             
             for (const visitor of frequentVisitors) {
+                console.log('자주 방문자 동기화 중:', visitor);
                 const { data, error } = await this.client
                     .from(this.config.tables.frequentVisitors)
                     .upsert({
@@ -278,13 +279,27 @@ class SupabaseClient {
                 console.error('자주 방문자 데이터 로드 오류:', frequentVisitorsError);
             } else {
                 console.log('자주 방문자 데이터 로드 성공:', frequentVisitors?.length || 0, '개');
+                
+                // Supabase 필드명을 시스템 필드명으로 변환
+                const convertedFrequentVisitors = (frequentVisitors || []).map(visitor => ({
+                    id: visitor.id,
+                    name: visitor.name,
+                    lastName: visitor.last_name,
+                    firstName: visitor.first_name,
+                    addedDate: visitor.added_date
+                }));
+                
+                console.log('변환된 자주 방문자 데이터:', convertedFrequentVisitors);
+                
                 if (window.visitorSystem) {
-                    window.visitorSystem.frequentVisitors = frequentVisitors || [];
+                    window.visitorSystem.frequentVisitors = convertedFrequentVisitors;
                     window.visitorSystem.renderFrequentVisitorsList();
+                    console.log('메인 시스템에 자주 방문자 데이터 할당 완료');
                 }
                 if (window.adminSystem) {
-                    window.adminSystem.frequentVisitors = frequentVisitors || [];
+                    window.adminSystem.frequentVisitors = convertedFrequentVisitors;
                     window.adminSystem.renderFrequentVisitorsList();
+                    console.log('관리자 시스템에 자주 방문자 데이터 할당 완료');
                 }
             }
             
