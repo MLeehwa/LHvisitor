@@ -752,7 +752,7 @@ class AdminSystem {
     }
 
     // 자주 방문자 추가
-    addFrequentVisitor() {
+    async addFrequentVisitor() {
         const lastNameInput = document.getElementById('frequentVisitorLastName');
         const firstNameInput = document.getElementById('frequentVisitorFirstName');
         const lastName = lastNameInput.value.trim();
@@ -774,7 +774,7 @@ class AdminSystem {
         };
 
         this.frequentVisitors.push(visitor);
-        this.saveFrequentVisitors();
+        await this.saveFrequentVisitors();
         this.renderFrequentVisitorsList();
         
         lastNameInput.value = '';
@@ -829,16 +829,23 @@ class AdminSystem {
     }
 
     // 자주 방문자 삭제
-    removeFrequentVisitor(visitorId) {
+    async removeFrequentVisitor(visitorId) {
         this.frequentVisitors = this.frequentVisitors.filter(v => v.id !== visitorId);
-        this.saveFrequentVisitors();
+        await this.saveFrequentVisitors();
         this.renderFrequentVisitorsList();
         this.showNotification('성공', '자주 방문자가 삭제되었습니다', 'success');
     }
 
-    // 자주 방문자 데이터 저장
-    saveFrequentVisitors() {
-        localStorage.setItem('visitorSystemFrequentVisitors', JSON.stringify(this.frequentVisitors));
+    // 자주 방문자 데이터 저장 (Supabase로만)
+    async saveFrequentVisitors() {
+        if (window.supabaseClient && window.supabaseClient.config.sync.enabled) {
+            try {
+                await window.supabaseClient.syncFrequentVisitors();
+                console.log('Supabase에 자주 방문자 데이터 저장 완료');
+            } catch (error) {
+                console.error('Supabase에 자주 방문자 데이터 저장 실패:', error);
+            }
+        }
     }
 
     // 로그 목록 업데이트
@@ -1324,18 +1331,14 @@ class AdminSystem {
             this.loadLocationsFromLocalStorage();
         }
 
-        if (savedFrequentVisitors) {
+        // 자주 방문자 데이터 로드 (Supabase에서만)
+        if (window.supabaseClient && window.supabaseClient.config.sync.enabled) {
             try {
-                this.frequentVisitors = JSON.parse(savedFrequentVisitors);
-                console.log('자주 방문자 데이터 로드 완료:', this.frequentVisitors.length, '명');
-                console.log('로드된 자주 방문자:', this.frequentVisitors);
+                await window.supabaseClient.loadFromDatabase();
+                console.log('Supabase에서 자주 방문자 데이터 로드 완료');
             } catch (error) {
-                console.error('자주 방문자 데이터 로드 오류:', error);
-                this.frequentVisitors = [];
+                console.error('Supabase에서 자주 방문자 데이터 로드 실패:', error);
             }
-        } else {
-            console.log('저장된 자주 방문자 데이터가 없습니다.');
-            this.frequentVisitors = [];
         }
     }
 

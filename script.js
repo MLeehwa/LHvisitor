@@ -2003,14 +2003,13 @@ class VisitorManagementSystem {
             }
         }
 
-        // 자주 방문자 데이터 로드
-        const savedFrequentVisitors = localStorage.getItem('visitorSystemFrequentVisitors');
-        if (savedFrequentVisitors) {
+        // 자주 방문자 데이터 로드 (Supabase에서만)
+        if (window.supabaseClient && window.supabaseClient.config.sync.enabled) {
             try {
-                this.frequentVisitors = JSON.parse(savedFrequentVisitors);
+                await window.supabaseClient.loadFromDatabase();
+                console.log('Supabase에서 자주 방문자 데이터 로드 완료');
             } catch (error) {
-                console.error('자주 방문자 데이터 로드 오류:', error);
-                this.frequentVisitors = [];
+                console.error('Supabase에서 자주 방문자 데이터 로드 실패:', error);
             }
         }
     }
@@ -2067,7 +2066,7 @@ class VisitorManagementSystem {
     }
 
     // 자주 방문자 추가
-    addFrequentVisitor() {
+    async addFrequentVisitor() {
         const lastNameInput = document.getElementById('frequentVisitorLastName');
         const firstNameInput = document.getElementById('frequentVisitorFirstName');
         const lastName = lastNameInput.value.trim();
@@ -2089,18 +2088,8 @@ class VisitorManagementSystem {
         };
 
         this.frequentVisitors.push(visitor);
-        this.saveFrequentVisitors();
+        await this.saveFrequentVisitors();
         this.renderFrequentVisitorsList();
-        
-        // Supabase 동기화 강제 실행
-        if (window.supabaseClient && window.supabaseClient.config.sync.enabled) {
-            console.log('자주 방문자 Supabase 동기화 시작...');
-            window.supabaseClient.syncFrequentVisitors().then(() => {
-                console.log('자주 방문자 Supabase 동기화 완료');
-            }).catch(error => {
-                console.error('자주 방문자 Supabase 동기화 실패:', error);
-            });
-        }
         
         lastNameInput.value = '';
         firstNameInput.value = '';
@@ -2131,16 +2120,23 @@ class VisitorManagementSystem {
     }
 
     // 자주 방문자 삭제
-    removeFrequentVisitor(visitorId) {
+    async removeFrequentVisitor(visitorId) {
         this.frequentVisitors = this.frequentVisitors.filter(v => v.id !== visitorId);
-        this.saveFrequentVisitors();
+        await this.saveFrequentVisitors();
         this.renderFrequentVisitorsList();
         this.showNotification('성공', '자주 방문자가 삭제되었습니다', 'success');
     }
 
-    // 자주 방문자 데이터 저장
-    saveFrequentVisitors() {
-        localStorage.setItem('visitorSystemFrequentVisitors', JSON.stringify(this.frequentVisitors));
+    // 자주 방문자 데이터 저장 (Supabase로만)
+    async saveFrequentVisitors() {
+        if (window.supabaseClient && window.supabaseClient.config.sync.enabled) {
+            try {
+                await window.supabaseClient.syncFrequentVisitors();
+                console.log('Supabase에 자주 방문자 데이터 저장 완료');
+            } catch (error) {
+                console.error('Supabase에 자주 방문자 데이터 저장 실패:', error);
+            }
+        }
     }
 
     // 초기 설정 가이드 표시
