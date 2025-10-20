@@ -1,433 +1,627 @@
-// Supabase 데이터베이스 연동 클래스
+// Supabase Client for Visitor Management System
 class SupabaseClient {
     constructor() {
         this.client = null;
-        this.config = window.dbConfig;
+        this.isInitialized = false;
+        this.retryCount = 0;
+        this.maxRetries = 5;
+        
         this.init();
     }
-    
-    // 초기화
-    init() {
-        console.log('=== Supabase 클라이언트 초기화 시작 ===');
-        console.log('window.dbConfig 존재:', !!this.config);
-        console.log('동기화 설정:', this.config.sync);
+
+    async init() {
+        console.log('Initializing Supabase client...');
         
-        // Supabase가 로드될 때까지 기다림
-        this.waitForSupabase().then(() => {
-            console.log('✅ Supabase CDN 로딩 완료, 클라이언트 생성 시도...');
-            this.client = this.config.initSupabase();
-            console.log('Supabase 클라이언트 초기화:', this.client ? '성공' : '실패');
+        // Wait for Supabase to load first
+        try {
+            await this.waitForSupabase();
+            this.client = this.createClient();
             
             if (this.client) {
-                console.log('✅ Supabase 클라이언트 생성 성공');
-                if (this.config.sync.enabled) {
-                    this.startAutoSync();
-                    console.log('✅ Supabase 자동 동기화 시작');
-                } else {
-                    console.warn('⚠️ Supabase 동기화가 비활성화되어 있습니다');
-                }
+                this.isInitialized = true;
+                console.log('Supabase client initialized successfully');
             } else {
-                console.error('❌ Supabase 클라이언트 생성 실패');
+                console.error('Failed to create Supabase client');
+                this.isInitialized = false;
             }
-        }).catch(error => {
-            console.error('❌ Supabase 초기화 오류:', error);
+        } catch (error) {
+            console.error('Supabase initialization failed:', error);
+            this.isInitialized = false;
+        }
+    }
+
+    async waitForSupabase() {
+        return new Promise((resolve) => {
+            let attempts = 0;
+            const maxAttempts = 30; // 3 seconds with 100ms intervals
+            
+            const checkSupabase = () => {
+                attempts++;
+                console.log(`Checking for Supabase... attempt ${attempts}/${maxAttempts}`);
+                
+                // Check if Supabase is loaded and available
+                if (typeof supabase !== 'undefined' && supabase.createClient) {
+                    console.log('Supabase CDN loaded successfully');
+                    resolve();
+                } else if (window.supabaseLoaded === false) {
+                    console.warn('Supabase CDN failed to load, continuing without Supabase');
+                    resolve();
+                } else if (attempts >= maxAttempts) {
+                    console.warn('Supabase CDN not loaded within timeout, continuing without Supabase');
+                    resolve();
+                } else {
+                    setTimeout(checkSupabase, 100);
+                }
+            };
+            
+            checkSupabase();
         });
     }
-    
-    // Supabase 로딩 대기
-    async waitForSupabase() {
-        let retryCount = 0;
-        const maxRetries = 20; // 10초 대기
-        
-        while (typeof supabase === 'undefined' && retryCount < maxRetries) {
-            console.log(`Supabase 로딩 대기 중... (${retryCount + 1}/${maxRetries})`);
-            await new Promise(resolve => setTimeout(resolve, 500));
-            retryCount++;
-        }
-        
+
+    createClient() {
         if (typeof supabase === 'undefined') {
-            throw new Error('Supabase 로딩 시간 초과');
+            console.error('Supabase library not loaded');
+            return null;
         }
-        
-        console.log('Supabase 로딩 완료');
-    }
-    
-    // 자동 동기화 시작
-    startAutoSync() {
-        if (this.config.sync.autoSync) {
-            setInterval(() => {
-                this.syncToDatabase();
-            }, this.config.sync.syncInterval);
-        }
-    }
-    
-    // 방문자 데이터 동기화
-    async syncVisitors() {
-        if (!this.client) return;
-        
+
         try {
-            const currentVisitors = JSON.parse(localStorage.getItem(this.config.storageKeys.currentVisitors) || '[]');
+            const client = supabase.createClient(
+                'https://xqjyhoxtahfvfvedoljz.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxanlob3h0YWhmdmZ2ZWRvbGp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYxMzM3MzMsImV4cCI6MjA2MTcwOTczM30.unZyS_3aBRq2F0vv62jquTAy7cX40mE5nZYDRajhNqw'
+            );
             
-            for (const visitor of currentVisitors) {
-                const { data, error } = await this.client
-                    .from(this.config.tables.visitors)
-                    .upsert({
-                        id: visitor.id,
-                        name: visitor.name,
-                        full_name: visitor.fullName,
-                        last_name: visitor.lastName,
-                        first_name: visitor.firstName,
-                        category: visitor.category,
-                        location_name: visitor.locationName,
-                        company: visitor.company,
-                        phone: visitor.phone,
-                        purpose: visitor.purpose,
-                        checkin_time: visitor.checkinTime,
-                        checkout_time: visitor.checkoutTime,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    });
-                
-                if (error) {
-                    console.error('방문자 동기화 오류:', error);
-                }
-            }
-            
-            console.log('방문자 데이터 동기화 완료');
+            console.log('Supabase client created successfully');
+            console.log('Supabase URL:', 'https://xqjyhoxtahfvfvedoljz.supabase.co');
+            return client;
         } catch (error) {
-            console.error('방문자 동기화 중 오류:', error);
+            console.error('Failed to create Supabase client:', error);
+            return null;
         }
     }
-    
-    // 방문 로그 동기화
-    async syncVisitLogs() {
-        if (!this.client) return;
-        
-        try {
-            const visitLogs = JSON.parse(localStorage.getItem(this.config.storageKeys.visitLogs) || '[]');
-            
-            for (const log of visitLogs) {
-                const { data, error } = await this.client
-                    .from(this.config.tables.visitLogs)
-                    .upsert({
-                        id: log.id,
-                        visitor_name: log.name,
-                        full_name: log.fullName,
-                        last_name: log.lastName,
-                        first_name: log.firstName,
-                        category: log.category,
-                        location_name: log.locationName,
-                        company: log.company,
-                        phone: log.phone,
-                        purpose: log.purpose,
-                        action: log.action,
-                        checkin_time: log.checkinTime,
-                        checkout_time: log.checkoutTime,
-                        timestamp: log.timestamp,
-                        created_at: new Date().toISOString()
-                    });
-                
-                if (error) {
-                    console.error('방문 로그 동기화 오류:', error);
-                }
-            }
-            
-            console.log('방문 로그 동기화 완료');
-        } catch (error) {
-            console.error('방문 로그 동기화 중 오류:', error);
-        }
-    }
-    
-    // 위치 데이터 동기화
-    async syncLocations() {
-        if (!this.client) return;
-        
-        try {
-            const locations = JSON.parse(localStorage.getItem(this.config.storageKeys.locations) || '[]');
-            
-            // 현재 localStorage에 있는 모든 위치 ID 수집
-            const currentLocationIds = locations.map(loc => loc.id);
-            
-            // 데이터베이스에서 모든 위치 가져오기
-            const { data: dbLocations, error: fetchError } = await this.client
-                .from(this.config.tables.locations)
-                .select('id');
-            
-            if (fetchError) {
-                console.error('데이터베이스 위치 조회 오류:', fetchError);
-                return;
-            }
-            
-            // 데이터베이스에 있지만 localStorage에 없는 위치들 삭제
-            if (dbLocations) {
-                const dbLocationIds = dbLocations.map(loc => loc.id);
-                const locationsToDelete = dbLocationIds.filter(id => !currentLocationIds.includes(id));
-                
-                for (const locationId of locationsToDelete) {
-                    const { error: deleteError } = await this.client
-                        .from(this.config.tables.locations)
-                        .delete()
-                        .eq('id', locationId);
-                    
-                    if (deleteError) {
-                        console.error('위치 삭제 오류:', deleteError);
-                    } else {
-                        console.log(`위치 ${locationId} 삭제 완료`);
-                    }
-                }
-            }
-            
-            // localStorage의 위치들을 데이터베이스에 upsert
-            for (const location of locations) {
-                const { data, error } = await this.client
-                    .from(this.config.tables.locations)
-                    .upsert({
-                        id: location.id,
-                        name: location.name,
-                        category: location.category,
-                        latitude: location.lat,
-                        longitude: location.lng,
-                        radius: location.radius,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    });
-                
-                if (error) {
-                    console.error('위치 데이터 동기화 오류:', error);
-                }
-            }
-            
-            console.log('위치 데이터 동기화 완료');
-        } catch (error) {
-            console.error('위치 데이터 동기화 중 오류:', error);
-        }
-    }
-    
-    // 개별 위치 삭제
-    async deleteLocation(locationId) {
-        if (!this.client) return false;
-        
-        try {
-            const { error } = await this.client
-                .from(this.config.tables.locations)
-                .delete()
-                .eq('id', locationId);
-            
-            if (error) {
-                console.error('위치 삭제 오류:', error);
-                return false;
-            }
-            
-            console.log(`위치 ${locationId} 삭제 완료`);
-            return true;
-        } catch (error) {
-            console.error('위치 삭제 중 오류:', error);
+
+    async testLocationsAccess() {
+        if (!this.isInitialized || !this.client) {
+            console.warn('Supabase not initialized, cannot test locations access');
             return false;
         }
-    }
-    
-    // 자주 방문자 동기화
-    async syncFrequentVisitors() {
-        if (!this.client) {
-            console.error('Supabase 클라이언트가 초기화되지 않았습니다');
-            return;
-        }
-        
+
         try {
-            // 현재 시스템에서 자주 방문자 데이터 가져오기
-            let frequentVisitors = [];
-            if (window.visitorSystem) {
-                frequentVisitors = window.visitorSystem.frequentVisitors;
-            } else if (window.adminSystem) {
-                frequentVisitors = window.adminSystem.frequentVisitors;
-            }
-            
-            console.log('자주 방문자 동기화 시작:', frequentVisitors.length, '개');
-            
-            for (const visitor of frequentVisitors) {
-                console.log('자주 방문자 동기화 중:', visitor);
-                const { data, error } = await this.client
-                    .from(this.config.tables.frequentVisitors)
-                    .upsert({
-                        id: visitor.id,
-                        name: visitor.name,
-                        last_name: visitor.lastName,
-                        first_name: visitor.firstName,
-                        added_date: visitor.addedDate,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    });
-                
-                if (error) {
-                    console.error('자주 방문자 동기화 오류:', error);
-                } else {
-                    console.log('자주 방문자 동기화 성공:', visitor.name);
-                }
-            }
-            
-            console.log('자주 방문자 동기화 완료');
-        } catch (error) {
-            console.error('자주 방문자 동기화 중 오류:', error);
-        }
-    }
-    
-    // 전체 데이터 동기화
-    async syncToDatabase() {
-        if (!this.config.sync.enabled || !this.client) return;
-        
-        console.log('데이터베이스 동기화 시작...');
-        
-        await Promise.all([
-            this.syncVisitors(),
-            this.syncVisitLogs(),
-            this.syncLocations(),
-            this.syncFrequentVisitors()
-        ]);
-        
-        console.log('전체 데이터 동기화 완료');
-    }
-    
-    // 데이터베이스에서 데이터 로드
-    async loadFromDatabase() {
-        console.log('=== Supabase 데이터 로드 시작 ===');
-        console.log('Supabase 클라이언트 상태:', this.client ? '초기화됨' : '초기화 안됨');
-        console.log('동기화 설정:', this.config.sync);
-        
-        if (!this.client) {
-            console.error('❌ Supabase 클라이언트가 초기화되지 않았습니다');
-            return;
-        }
-        
-        try {
-            console.log('✅ Supabase에서 데이터 로드 시작...');
-            
-            // 자주 방문자 로드
-            console.log('자주 방문자 데이터 로드 중...');
-            const { data: frequentVisitors, error: frequentVisitorsError } = await this.client
-                .from(this.config.tables.frequentVisitors)
-                .select('*');
-            
-            if (frequentVisitorsError) {
-                console.error('자주 방문자 데이터 로드 오류:', frequentVisitorsError);
-            } else {
-                console.log('자주 방문자 데이터 로드 성공:', frequentVisitors?.length || 0, '개');
-                
-                // Supabase 필드명을 시스템 필드명으로 변환
-                const convertedFrequentVisitors = (frequentVisitors || []).map(visitor => ({
-                    id: visitor.id,
-                    name: visitor.name,
-                    lastName: visitor.last_name,
-                    firstName: visitor.first_name,
-                    addedDate: visitor.added_date
-                }));
-                
-                console.log('변환된 자주 방문자 데이터:', convertedFrequentVisitors);
-                
-                // 시스템이 준비될 때까지 기다림
-                const assignToSystem = (systemName, system) => {
-                    if (system) {
-                        console.log(`${systemName}에 자주 방문자 데이터 할당 중...`);
-                        system.frequentVisitors = convertedFrequentVisitors;
-                        console.log(`${systemName} 자주 방문자 데이터:`, system.frequentVisitors);
-                        if (typeof system.renderFrequentVisitorsList === 'function') {
-                            system.renderFrequentVisitorsList();
-                            console.log(`${systemName}에 자주 방문자 데이터 할당 완료`);
-                        } else {
-                            console.warn(`${systemName}에 renderFrequentVisitorsList 메서드가 없습니다.`);
-                        }
-                    } else {
-                        console.warn(`${systemName}이 없습니다.`);
-                    }
-                };
-                
-                assignToSystem('메인 시스템', window.visitorSystem);
-                if (window.adminSystem) {
-                    assignToSystem('관리자 시스템', window.adminSystem);
-                } else {
-                    console.log('관리자 시스템이 아직 초기화되지 않았습니다. (정상적인 상황일 수 있음)');
-                }
-            }
-            
-            // 방문자 데이터 로드
-            console.log('현재 방문자 데이터 로드 중...');
-            const { data: visitors, error: visitorsError } = await this.client
-                .from(this.config.tables.visitors)
-                .select('*');
-            
-            if (visitorsError) {
-                console.error('현재 방문자 데이터 로드 오류:', visitorsError);
-            } else {
-                console.log('현재 방문자 데이터 로드 성공:', visitors?.length || 0, '개');
-                if (window.visitorSystem) {
-                    window.visitorSystem.currentVisitors = visitors || [];
-                    window.visitorSystem.updateVisitorList();
-                }
-            }
-            
-            // 방문 로그 로드
-            console.log('방문 로그 데이터 로드 중...');
-            const { data: logs, error: logsError } = await this.client
-                .from(this.config.tables.visitLogs)
-                .select('*')
-                .order('timestamp', { ascending: false });
-            
-            if (logsError) {
-                console.error('방문 로그 데이터 로드 오류:', logsError);
-            } else {
-                console.log('방문 로그 데이터 로드 성공:', logs?.length || 0, '개');
-                if (window.visitorSystem) {
-                    window.visitorSystem.visitLogs = logs || [];
-                    window.visitorSystem.updateLogList();
-                }
-                if (window.adminSystem) {
-                    window.adminSystem.visitLogs = logs || [];
-                    window.adminSystem.updateLogList();
-                }
-            }
-            
-            // 위치 데이터 로드
-            console.log('위치 데이터 로드 중...');
-            const { data: locations, error: locationsError } = await this.client
-                .from(this.config.tables.locations)
-                .select('*');
-            
-            if (locationsError) {
-                console.error('위치 데이터 로드 오류:', locationsError);
-            } else {
-                console.log('위치 데이터 로드 성공:', locations?.length || 0, '개');
-                if (window.visitorSystem) {
-                    window.visitorSystem.locations = locations || [];
-                    window.visitorSystem.renderLocationList();
-                }
-                if (window.adminSystem) {
-                    window.adminSystem.locations = locations || [];
-                    window.adminSystem.renderLocationList();
-                }
-            }
-            
-            console.log('Supabase에서 모든 데이터 로드 완료');
-        } catch (error) {
-            console.error('Supabase 데이터 로드 중 오류:', error);
-        }
-    }
-    
-    // 동기화 상태 확인
-    async checkSyncStatus() {
-        if (!this.client) return false;
-        
-        try {
+            console.log('Testing locations table access...');
             const { data, error } = await this.client
-                .from(this.config.tables.visitors)
+                .from('locations')
                 .select('count')
                 .limit(1);
             
-            return !error;
+            if (error) {
+                console.error('Locations access test failed:', error);
+                return false;
+            }
+            
+            console.log('Locations access test successful');
+            return true;
         } catch (error) {
-            console.error('동기화 상태 확인 오류:', error);
+            console.error('Locations access test error:', error);
             return false;
+        }
+    }
+
+    async testConnection() {
+        try {
+            const { data, error } = await this.client
+                .from('visitors')
+                .select('count')
+                .limit(1);
+            
+            if (error) {
+                throw error;
+            }
+            
+            console.log('Supabase connection test successful');
+            return true;
+        } catch (error) {
+            console.error('Supabase connection test failed:', error);
+            return false;
+        }
+    }
+
+    async loadFromDatabase() {
+        console.log('Loading data from Supabase database...');
+        
+        if (!this.isInitialized || !this.client) {
+            throw new Error('Supabase not initialized');
+        }
+
+        try {
+            // Load visitors
+            await this.loadVisitors();
+            
+            // Load visit logs
+            await this.loadVisitLogs();
+            
+            // Load locations
+            await this.loadLocations();
+            
+            // Load frequent visitors
+            await this.loadFrequentVisitors();
+            
+            console.log('All data loaded from Supabase successfully');
+        } catch (error) {
+            console.error('Failed to load data from Supabase:', error);
+            throw error;
+        }
+    }
+
+    async loadVisitors() {
+        try {
+            const { data, error } = await this.client
+                .from('visitors')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                throw error;
+            }
+
+            if (data && data.length > 0) {
+                // Convert snake_case to camelCase and update main system
+                const visitors = data.map(visitor => ({
+                    id: visitor.id,
+                    fullName: visitor.full_name,
+                    category: visitor.category,
+                    company: visitor.company,
+                    phone: visitor.phone,
+                    purpose: visitor.purpose,
+                    checkinTime: visitor.checkin_time,
+                    timestamp: visitor.created_at
+                }));
+
+                if (window.mainVisitorSystem) {
+                    window.mainVisitorSystem.currentVisitors = visitors;
+                    window.mainVisitorSystem.updateVisitorCounts();
+                }
+
+                if (window.adminSystem) {
+                    window.adminSystem.currentVisitors = visitors;
+                }
+
+                console.log(`Loaded ${visitors.length} visitors from Supabase`);
+            }
+        } catch (error) {
+            console.error('Failed to load visitors from Supabase:', error);
+            throw error;
+        }
+    }
+
+    async loadVisitLogs() {
+        try {
+            const { data, error } = await this.client
+                .from('visit_logs')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                throw error;
+            }
+
+            if (data && data.length > 0) {
+                // Convert snake_case to camelCase
+                const logs = data.map(log => ({
+                    id: log.id,
+                    name: log.name,
+                    fullName: log.full_name,
+                    category: log.category,
+                    action: log.action,
+                    company: log.company,
+                    phone: log.phone,
+                    purpose: log.purpose,
+                    checkinTime: log.checkin_time,
+                    checkoutTime: log.checkout_time,
+                    timestamp: log.created_at
+                }));
+
+                if (window.mainVisitorSystem) {
+                    window.mainVisitorSystem.visitLogs = logs;
+                }
+
+                if (window.adminSystem) {
+                    window.adminSystem.visitLogs = logs;
+                }
+
+                console.log(`Loaded ${logs.length} visit logs from Supabase`);
+            }
+        } catch (error) {
+            console.error('Failed to load visit logs from Supabase:', error);
+            throw error;
+        }
+    }
+
+    async loadLocations() {
+        try {
+            console.log('Starting loadLocations...');
+            console.log('Supabase client available:', !!this.client);
+            console.log('Supabase initialized:', this.isInitialized);
+            
+            // Test access first
+            const hasAccess = await this.testLocationsAccess();
+            if (!hasAccess) {
+                console.warn('No access to locations table, skipping load');
+                return;
+            }
+            
+            const { data, error } = await this.client
+                .from('locations')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Supabase locations query error:', error);
+                console.error('Error details:', {
+                    code: error.code,
+                    message: error.message,
+                    details: error.details,
+                    hint: error.hint
+                });
+                throw error;
+            }
+
+            console.log('Supabase locations data:', data);
+            console.log('Data length:', data ? data.length : 'null');
+            console.log('Data type:', typeof data);
+            console.log('Raw query result:', { data, error });
+            
+            if (data && data.length > 0) {
+                console.log('Raw location data sample:', data[0]);
+                const locations = data.map((location, index) => ({
+                    id: location.id || `location_${index + 1}`,
+                    name: location.name,
+                    category: location.category,
+                    lat: parseFloat(location.latitude),
+                    lng: parseFloat(location.longitude),
+                    radius: parseFloat(location.radius)
+                }));
+
+                console.log('Mapped locations:', locations);
+
+                if (window.mainVisitorSystem) {
+                    window.mainVisitorSystem.locations = locations;
+                }
+
+                if (window.adminSystem) {
+                    console.log('Updating adminSystem locations with Supabase data');
+                    window.adminSystem.locations = locations;
+                    // Update nextLocationId to avoid conflicts
+                    if (locations.length > 0) {
+                        const maxId = Math.max(...locations.map(l => {
+                            const idStr = l.id.toString();
+                            const match = idStr.match(/location_(\d+)/);
+                            return match ? parseInt(match[1]) : 0;
+                        }));
+                        window.adminSystem.nextLocationId = Math.max(maxId + 1, locations.length + 1);
+                    } else {
+                        window.adminSystem.nextLocationId = 1;
+                    }
+                    console.log('Updated nextLocationId to:', window.adminSystem.nextLocationId);
+                }
+            } else {
+                console.log('No locations data from Supabase, loading default locations');
+                // Load default locations when Supabase has no data
+                const defaultLocations = [
+                    {
+                        id: 'location_1',
+                        name: '기숙사 A동',
+                        category: 'dormitory',
+                        lat: 37.566500,
+                        lng: 126.978000,
+                        radius: 0.1
+                    },
+                    {
+                        id: 'location_2',
+                        name: '공장 본관',
+                        category: 'factory',
+                        lat: 37.567000,
+                        lng: 126.979000,
+                        radius: 0.2
+                    }
+                ];
+                
+                if (window.mainVisitorSystem) {
+                    window.mainVisitorSystem.locations = defaultLocations;
+                }
+                
+                if (window.adminSystem) {
+                    window.adminSystem.locations = defaultLocations;
+                    window.adminSystem.nextLocationId = 3;
+                    console.log('Loaded default locations for adminSystem:', defaultLocations);
+                }
+            }
+            
+            // Always call renderLocationList after loading
+            if (window.adminSystem) {
+                if (typeof window.adminSystem.renderLocationList === 'function') {
+                    console.log('Calling renderLocationList after loading locations');
+                    window.adminSystem.renderLocationList();
+                } else {
+                    console.warn('renderLocationList method not available on adminSystem');
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load locations from Supabase:', error);
+            throw error;
+        }
+    }
+
+    async loadFrequentVisitors() {
+        try {
+            const { data, error } = await this.client
+                .from('frequent_visitors')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                throw error;
+            }
+
+            if (data && data.length > 0) {
+                // Convert snake_case to camelCase
+                const frequentVisitors = data.map(visitor => ({
+                    id: visitor.id,
+                    name: visitor.name,
+                    addedDate: visitor.added_date
+                }));
+
+                if (window.mainVisitorSystem && typeof window.mainVisitorSystem.renderFrequentVisitorsList === 'function') {
+                    window.mainVisitorSystem.frequentVisitors = frequentVisitors;
+                    window.mainVisitorSystem.renderFrequentVisitorsList();
+                }
+
+                if (window.adminSystem) {
+                    window.adminSystem.frequentVisitors = frequentVisitors;
+                    // Safe method call with error handling
+                    if (typeof window.adminSystem.renderFrequentVisitorsList === 'function') {
+                        window.adminSystem.renderFrequentVisitorsList();
+                    } else {
+                        console.warn('renderFrequentVisitorsList method not available on adminSystem');
+                    }
+                }
+
+                console.log(`Loaded ${frequentVisitors.length} frequent visitors from Supabase`);
+            }
+        } catch (error) {
+            console.error('Failed to load frequent visitors from Supabase:', error);
+            throw error;
+        }
+    }
+
+    async syncVisitors() {
+        if (!this.isInitialized || !this.client) {
+            console.warn('Supabase not initialized, skipping visitor sync');
+            return;
+        }
+
+        try {
+            const visitors = window.mainVisitorSystem?.currentVisitors || [];
+            
+            // Clear existing visitors
+            await this.client
+                .from('visitors')
+                .delete()
+                .neq('id', 0); // Delete all records
+
+            // Insert current visitors
+            if (visitors.length > 0) {
+                const visitorsToInsert = visitors.map(visitor => ({
+                    id: visitor.id.toString(),
+                    name: visitor.fullName,
+                    full_name: visitor.fullName,
+                    last_name: visitor.lastName,
+                    first_name: visitor.firstName,
+                    category: visitor.category,
+                    location_name: visitor.locationName || null,
+                    company: visitor.company || null,
+                    phone: visitor.phone || null,
+                    purpose: visitor.purpose || null,
+                    checkin_time: visitor.checkinTime,
+                    checkout_time: visitor.checkoutTime || null,
+                    created_at: visitor.timestamp
+                }));
+
+                const { error } = await this.client
+                    .from('visitors')
+                    .insert(visitorsToInsert);
+
+                if (error) {
+                    throw error;
+                }
+
+                console.log(`Synced ${visitors.length} visitors to Supabase`);
+            }
+        } catch (error) {
+            console.error('Failed to sync visitors to Supabase:', error);
+            throw error;
+        }
+    }
+
+    async syncLogs() {
+        if (!this.isInitialized || !this.client) {
+            console.warn('Supabase not initialized, skipping logs sync');
+            return;
+        }
+
+        try {
+            const logs = window.mainVisitorSystem?.visitLogs || [];
+            
+            // Clear existing logs
+            await this.client
+                .from('visit_logs')
+                .delete()
+                .neq('id', 0); // Delete all records
+
+            // Insert current logs
+            if (logs.length > 0) {
+                const logsToInsert = logs.map(log => ({
+                    id: log.id.toString(),
+                    visitor_name: log.name || log.fullName,
+                    name: log.name || log.fullName,
+                    full_name: log.fullName,
+                    last_name: log.lastName,
+                    first_name: log.firstName,
+                    category: log.category,
+                    location_name: log.locationName || null,
+                    action: log.action,
+                    company: log.company || null,
+                    phone: log.phone || null,
+                    purpose: log.purpose || null,
+                    checkin_time: log.checkinTime,
+                    checkout_time: log.checkoutTime,
+                    timestamp: log.timestamp,
+                    created_at: log.timestamp
+                }));
+
+                const { error } = await this.client
+                    .from('visit_logs')
+                    .insert(logsToInsert);
+
+                if (error) {
+                    throw error;
+                }
+
+                console.log(`Synced ${logs.length} visit logs to Supabase`);
+            }
+        } catch (error) {
+            console.error('Failed to sync logs to Supabase:', error);
+            throw error;
+        }
+    }
+
+    async syncLocations() {
+        if (!this.isInitialized || !this.client) {
+            console.warn('Supabase not initialized, skipping locations sync');
+            return;
+        }
+
+        try {
+            const locations = window.adminSystem?.locations || [];
+            
+            if (locations.length > 0) {
+                console.log(`Syncing ${locations.length} locations to Supabase...`);
+                
+                // Use UPSERT (INSERT ... ON CONFLICT) to handle duplicates safely
+                const locationsToUpsert = locations.map(location => ({
+                    id: location.id,
+                    name: location.name,
+                    category: location.category,
+                    latitude: location.lat,
+                    longitude: location.lng,
+                    radius: location.radius,
+                    updated_at: new Date()
+                }));
+
+                const { error } = await this.client
+                    .from('locations')
+                    .upsert(locationsToUpsert, { 
+                        onConflict: 'id',
+                        ignoreDuplicates: false 
+                    });
+
+                if (error) {
+                    console.error('Supabase upsert error:', error);
+                    throw error;
+                }
+
+                console.log(`Successfully synced ${locations.length} locations to Supabase`);
+                
+                // Immediately reload data after sync to ensure UI is updated
+                console.log('Reloading locations after sync...');
+                await this.loadLocations();
+            } else {
+                console.log('No locations to sync');
+            }
+        } catch (error) {
+            console.error('Failed to sync locations to Supabase:', error);
+            throw error;
+        }
+    }
+
+    async syncFrequentVisitors() {
+        if (!this.isInitialized || !this.client) {
+            console.warn('Supabase not initialized, skipping frequent visitors sync');
+            return;
+        }
+
+        try {
+            const frequentVisitors = window.adminSystem?.frequentVisitors || [];
+            
+            // Clear existing frequent visitors
+            await this.client
+                .from('frequent_visitors')
+                .delete()
+                .neq('id', 0); // Delete all records
+
+            // Insert current frequent visitors
+            if (frequentVisitors.length > 0) {
+                const visitorsToInsert = frequentVisitors.map(visitor => ({
+                    id: visitor.id.toString(),
+                    name: visitor.name,
+                    last_name: visitor.lastName,
+                    first_name: visitor.firstName,
+                    added_date: visitor.addedDate,
+                    created_at: new Date()
+                }));
+
+                const { error } = await this.client
+                    .from('frequent_visitors')
+                    .insert(visitorsToInsert);
+
+                if (error) {
+                    throw error;
+                }
+
+                console.log(`Synced ${frequentVisitors.length} frequent visitors to Supabase`);
+            }
+        } catch (error) {
+            console.error('Failed to sync frequent visitors to Supabase:', error);
+            throw error;
+        }
+    }
+
+    // Real-time subscription for live updates
+    subscribeToChanges() {
+        if (!this.isInitialized || !this.client) {
+            console.warn('Supabase not initialized, skipping real-time subscription');
+            return;
+        }
+
+        try {
+            // Subscribe to visitors changes
+            this.client
+                .channel('visitors_changes')
+                .on('postgres_changes', 
+                    { event: '*', schema: 'public', table: 'visitors' },
+                    (payload) => {
+                        console.log('Visitors changed:', payload);
+                        this.loadVisitors();
+                    }
+                )
+                .subscribe();
+
+            // Subscribe to visit_logs changes
+            this.client
+                .channel('visit_logs_changes')
+                .on('postgres_changes', 
+                    { event: '*', schema: 'public', table: 'visit_logs' },
+                    (payload) => {
+                        console.log('Visit logs changed:', payload);
+                        this.loadVisitLogs();
+                    }
+                )
+                .subscribe();
+
+            console.log('Real-time subscriptions established');
+        } catch (error) {
+            console.error('Failed to establish real-time subscriptions:', error);
         }
     }
 }
 
-// 전역 Supabase 클라이언트 인스턴스
+// Initialize Supabase client
 window.supabaseClient = new SupabaseClient();

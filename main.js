@@ -1,4 +1,4 @@
-// 메인 방문자 관리 시스템 (체크인/체크아웃 전용)
+// Main Visitor Management System
 class MainVisitorSystem {
     constructor() {
         this.currentVisitors = [];
@@ -6,273 +6,213 @@ class MainVisitorSystem {
         this.locations = [
             {
                 id: 1,
-                name: '기숙사 입구',
+                name: 'Dormitory Entrance',
                 category: 'dormitory',
                 lat: 37.566500,
                 lng: 126.978000,
                 radius: 0.5
             }
         ];
-        this.nextLocationId = 2;
+        this.frequentVisitors = [];
         this.currentLocation = null;
         this.detectedCategory = null;
-        this.activeSection = null;
-        this.selectedVisitorId = null;
-        this.frequentVisitors = [];
-        this.dormitoryCheckinMode = 'manual';
         
-        // 기본 초기화
-        this.setupEventListeners();
-        this.setupTouchGestures();
-        this.getCurrentLocation();
-        this.updateVisitorCounts();
-        this.updateCheckoutOptions();
-        this.showInitialSetupGuide();
+        this.init();
     }
 
-    // 이벤트 리스너 설정
+    async init() {
+        console.log('Main system initialization started');
+        this.setupEventListeners();
+        this.getCurrentLocation();
+        this.updateVisitorCounts();
+        
+        // Load data from Supabase first, fallback to local storage
+        await this.loadDataFromSupabase();
+    }
+
     setupEventListeners() {
-        // 체크인 버튼
+        // Admin button
+        document.getElementById('adminBtn').addEventListener('click', () => {
+            this.showAdminLogin();
+        });
+
+        // Check-in button
         document.getElementById('checkinBtn').addEventListener('click', () => {
             this.showCheckinSection();
         });
 
-        // 체크아웃 버튼
+        // Check-out button
         document.getElementById('checkoutBtn').addEventListener('click', () => {
             this.showCheckoutSection();
         });
 
-        // 기숙사 체크인 관련
-        document.getElementById('dormManualEntry').addEventListener('click', () => {
-            this.showDormManualSection();
+        // Category selection
+        document.getElementById('dormitoryBtn').addEventListener('click', () => {
+            this.selectCategory('dormitory');
         });
 
-        document.getElementById('dormSelectRegistered').addEventListener('click', () => {
-            this.showDormRegisteredSection();
+        document.getElementById('factoryBtn').addEventListener('click', () => {
+            this.selectCategory('factory');
         });
 
+        // Check-in form buttons
         document.getElementById('dormCheckinBtn').addEventListener('click', () => {
             this.checkin('dormitory');
         });
 
-        // 공장 체크인 관련
         document.getElementById('factoryCheckinBtn').addEventListener('click', () => {
             this.checkin('factory');
         });
 
-        // 체크아웃 관련
+        // Check-out confirmation
         document.getElementById('checkoutConfirmBtn').addEventListener('click', () => {
             this.checkout();
         });
 
-        // 자주 방문자 선택
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('frequent-visitor-item')) {
-                const visitorId = e.target.dataset.visitorId;
-                this.selectFrequentVisitor(visitorId);
-            }
-        });
-
-        // 메인으로 돌아가기 버튼들
-        document.getElementById('backToMainFromDormCheckin').addEventListener('click', () => {
+        // Back to main buttons
+        document.getElementById('backToMainFromCheckin').addEventListener('click', () => {
             this.hideAllSections();
         });
 
         document.getElementById('backToMainFromCheckout').addEventListener('click', () => {
             this.hideAllSections();
         });
-    }
 
-    // 터치 제스처 설정
-    setupTouchGestures() {
-        let startX = 0;
-        let startY = 0;
-
-        document.addEventListener('touchstart', (e) => {
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
+        // Notification modal
+        document.getElementById('notificationOk').addEventListener('click', () => {
+            this.hideNotification();
         });
 
-        document.addEventListener('touchend', (e) => {
-            if (!startX || !startY) return;
 
-            const endX = e.changedTouches[0].clientX;
-            const endY = e.changedTouches[0].clientY;
-            const diffX = startX - endX;
-            const diffY = startY - endY;
-
-            // 좌우 스와이프 감지
-            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
-                if (diffX > 0) {
-                    // 왼쪽 스와이프 - 체크인
-                    this.showCheckinSection();
-                } else {
-                    // 오른쪽 스와이프 - 체크아웃
-                    this.showCheckoutSection();
-                }
+        // Frequent visitor selection
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('frequent-visitor-item')) {
+                const visitorId = e.target.dataset.visitorId;
+                this.selectFrequentVisitor(visitorId);
             }
-
-            startX = 0;
-            startY = 0;
-        });
-
-        // 더블탭으로 새로고침
-        let lastTap = 0;
-        document.addEventListener('touchend', (e) => {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTap;
-            if (tapLength < 500 && tapLength > 0) {
-                // 더블탭 감지
-                this.refreshData();
-            }
-            lastTap = currentTime;
         });
     }
 
-    // 현재 위치 가져오기
-    getCurrentLocation() {
-        if (!navigator.geolocation) {
-            this.showNotification('위치 오류', '이 브라우저는 위치 서비스를 지원하지 않습니다.', 'error');
-            return;
-        }
-
-        const options = {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 300000 // 5분 캐시
-        };
-
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                this.currentLocation = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                };
-                this.updateLocationStatus();
-                this.detectCategory();
-            },
-            (error) => {
-                console.error('위치 오류:', error);
-                this.showNotification('위치 오류', '위치를 가져올 수 없습니다. 수동으로 설정해주세요.', 'warning');
-            },
-            options
-        );
+    showAdminLogin() {
+        // Go directly to admin page
+        window.location.href = 'admin.html';
     }
 
-    // 위치 상태 업데이트
-    updateLocationStatus() {
-        const statusElement = document.getElementById('locationStatus');
-        if (statusElement && this.currentLocation) {
-            statusElement.textContent = `위도: ${this.currentLocation.lat.toFixed(6)}, 경도: ${this.currentLocation.lng.toFixed(6)}`;
-        }
-    }
-
-    // 카테고리 자동 감지
-    detectCategory() {
-        if (!this.currentLocation) return;
-
-        for (const location of this.locations) {
-            const distance = this.calculateDistance(
-                this.currentLocation.lat,
-                this.currentLocation.lng,
-                location.lat,
-                location.lng
-            );
-
-            if (distance <= location.radius) {
-                this.detectedCategory = location.category;
-                this.showNotification('위치 감지', `${location.name} 근처입니다.`, 'success');
-                return;
-            }
-        }
-
-        this.detectedCategory = null;
-    }
-
-    // 거리 계산
-    calculateDistance(lat1, lng1, lat2, lng2) {
-        const R = 6371; // 지구 반지름 (km)
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLng = (lng2 - lng1) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLng/2) * Math.sin(dLng/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
-    }
-
-    // 체크인 섹션 표시
-    showCheckinSection() {
+    async showCheckinSection() {
         this.hideAllSections();
         document.getElementById('checkinSection').classList.remove('hidden');
-        this.activeSection = 'checkin';
+        // Hide main buttons when showing check-in form
+        document.getElementById('mainButtons').classList.add('hidden');
+        
+        // Auto-detect location and show appropriate form
+        await this.autoDetectLocation();
     }
 
-    // 체크아웃 섹션 표시
     showCheckoutSection() {
         if (this.currentVisitors.length === 0) {
-            this.showNotification('알림', '체크아웃할 방문자가 없습니다.', 'warning');
+            this.showNotification('Notice', 'No visitors to check out.', 'warning');
             return;
         }
         
         this.hideAllSections();
         document.getElementById('checkoutSection').classList.remove('hidden');
-        this.activeSection = 'checkout';
         this.updateCheckoutOptions();
+        // Hide main buttons when showing check-out form
+        document.getElementById('mainButtons').classList.add('hidden');
     }
 
-    // 모든 섹션 숨기기
     hideAllSections() {
         document.getElementById('checkinSection').classList.add('hidden');
         document.getElementById('checkoutSection').classList.add('hidden');
-        this.activeSection = null;
+        // Show main buttons when hiding sections
+        document.getElementById('mainButtons').classList.remove('hidden');
     }
 
-    // 기숙사 수동 입력 섹션 표시
-    showDormManualSection() {
-        document.getElementById('dormRegisteredSection').classList.add('hidden');
-        document.getElementById('dormManualSection').classList.remove('hidden');
-        this.dormitoryCheckinMode = 'manual';
+    async autoDetectLocation() {
+        try {
+            // Get current GPS position
+            const position = await this.getCurrentPosition();
+            const userLat = position.coords.latitude;
+            const userLng = position.coords.longitude;
+            
+            console.log('Current position:', userLat, userLng);
+            
+            // Find nearest location
+            const nearestLocation = this.findNearestLocation(userLat, userLng);
+            
+            if (nearestLocation) {
+                console.log('Nearest location:', nearestLocation);
+                this.selectCategory(nearestLocation.category);
+                this.currentLocation = nearestLocation;
+                
+                // Show location info
+                this.showNotification(
+                    'Location Detected', 
+                    `You are near ${nearestLocation.name}. Please proceed with check-in.`, 
+                    'success'
+                );
+            } else {
+                // Fallback to manual selection
+                this.showLocationSelection();
+            }
+        } catch (error) {
+            console.error('Location detection failed:', error);
+            // Fallback to manual selection
+            this.showLocationSelection();
+        }
     }
 
-    // 기숙사 등록된 방문자 선택 섹션 표시
-    showDormRegisteredSection() {
-        document.getElementById('dormManualSection').classList.add('hidden');
-        document.getElementById('dormRegisteredSection').classList.remove('hidden');
-        this.dormitoryCheckinMode = 'registered';
-        this.renderFrequentVisitorsList();
+    showLocationSelection() {
+        // Show category selection buttons
+        document.getElementById('categorySelection').classList.remove('hidden');
+        document.getElementById('dormitoryForm').classList.add('hidden');
+        document.getElementById('factoryForm').classList.add('hidden');
     }
 
-    // 체크인 처리
-    checkin(category) {
+    selectCategory(category) {
+        // Hide category selection
+        document.getElementById('categorySelection').classList.add('hidden');
+        
+        // Hide all forms
+        document.getElementById('dormitoryForm').classList.add('hidden');
+        document.getElementById('factoryForm').classList.add('hidden');
+        
+        // Show selected form
+        if (category === 'dormitory') {
+            document.getElementById('dormitoryForm').classList.remove('hidden');
+            this.renderFrequentVisitorsList();
+        } else if (category === 'factory') {
+            document.getElementById('factoryForm').classList.remove('hidden');
+        }
+    }
+
+    async checkin() {
+        // Auto-detect category based on GPS location
+        let category = this.detectedCategory;
+        
+        if (!category) {
+            this.showNotification('Location Error', 'Unable to detect location. Please select manually.', 'error');
+            this.showLocationSelection();
+            return;
+        }
+
         let visitorData = {};
 
         if (category === 'dormitory') {
-            if (this.dormitoryCheckinMode === 'manual') {
-                const lastName = document.getElementById('dormLastName').value.trim();
-                const firstName = document.getElementById('dormFirstName').value.trim();
-                
-                if (!lastName || !firstName) {
-                    this.showNotification('입력 오류', '성과 이름을 모두 입력해주세요.', 'error');
-                    return;
-                }
-                
-                visitorData = {
-                    fullName: `${lastName} ${firstName}`,
-                    category: 'dormitory'
-                };
-            } else {
-                const selectedVisitor = this.frequentVisitors.find(v => v.id === this.selectedVisitorId);
-                if (!selectedVisitor) {
-                    this.showNotification('선택 오류', '방문자를 선택해주세요.', 'error');
-                    return;
-                }
-                
-                visitorData = {
-                    fullName: selectedVisitor.name,
-                    category: 'dormitory'
-                };
+            const lastName = document.getElementById('dormLastName').value.trim();
+            const firstName = document.getElementById('dormFirstName').value.trim();
+            
+            if (!lastName || !firstName) {
+                this.showNotification('Input Error', 'Please enter both last name and first name.', 'error');
+                return;
             }
+            
+            visitorData = {
+                fullName: `${lastName} ${firstName}`,
+                lastName,
+                firstName,
+                category: 'dormitory'
+            };
         } else if (category === 'factory') {
             const lastName = document.getElementById('factoryLastName').value.trim();
             const firstName = document.getElementById('factoryFirstName').value.trim();
@@ -281,12 +221,14 @@ class MainVisitorSystem {
             const purpose = document.getElementById('factoryPurpose').value;
             
             if (!lastName || !firstName || !company || !phone || !purpose) {
-                this.showNotification('입력 오류', '모든 필드를 입력해주세요.', 'error');
+                this.showNotification('Input Error', 'Please fill in all fields.', 'error');
                 return;
             }
             
             visitorData = {
                 fullName: `${lastName} ${firstName}`,
+                lastName,
+                firstName,
                 company: company,
                 phone: phone,
                 purpose: purpose,
@@ -294,7 +236,7 @@ class MainVisitorSystem {
             };
         }
 
-        // 방문자 추가
+        // Add visitor
         const visitor = {
             id: Date.now(),
             ...visitorData,
@@ -309,42 +251,55 @@ class MainVisitorSystem {
             name: visitorData.fullName
         });
 
-        // 폼 초기화
+        // Reset forms
         this.resetForms();
         
-        // UI 업데이트
+        // Update UI
         this.updateVisitorCounts();
-        this.updateCheckoutOptions();
         this.hideAllSections();
 
-        // Supabase에 동기화
-        if (window.supabaseClient && window.supabaseClient.client) {
-            window.supabaseClient.syncVisitors();
-            window.supabaseClient.syncLogs();
+        // Sync with Supabase
+        if (window.supabaseClient && window.supabaseClient.isInitialized && window.supabaseClient.client) {
+            try {
+                await window.supabaseClient.syncVisitors();
+                await window.supabaseClient.syncLogs();
+                console.log('Data synced to Supabase successfully');
+            } catch (error) {
+                console.error('Failed to sync to Supabase:', error);
+                this.showNotification('Database Error', 'Failed to save data to database. Please try again.', 'error');
+                return; // Don't show success message if sync failed
+            }
+        } else {
+            this.showNotification('Database Error', 'Database not available. Please refresh the page.', 'error');
+            return;
         }
 
-        this.showNotification('체크인 완료', `${visitorData.fullName}님이 체크인되었습니다.`, 'success');
+        this.showNotification('Check-in Complete', `${visitorData.fullName} has been checked in.`, 'success');
+        
+        // Auto return to main after 2 seconds
+        setTimeout(() => {
+            this.hideAllSections();
+        }, 2000);
     }
 
-    // 체크아웃 처리
-    checkout() {
+    async checkout() {
         const selectedVisitorId = document.querySelector('input[name="checkoutVisitor"]:checked')?.value;
         
         if (!selectedVisitorId) {
-            this.showNotification('선택 오류', '체크아웃할 방문자를 선택해주세요.', 'error');
+            this.showNotification('Selection Error', 'Please select a visitor to check out.', 'error');
             return;
         }
 
         const visitorIndex = this.currentVisitors.findIndex(v => v.id == selectedVisitorId);
         if (visitorIndex === -1) {
-            this.showNotification('오류', '선택된 방문자를 찾을 수 없습니다.', 'error');
+            this.showNotification('Error', 'Selected visitor not found.', 'error');
             return;
         }
 
         const visitor = this.currentVisitors[visitorIndex];
         const checkoutTime = new Date();
 
-        // 로그에 체크아웃 기록 추가
+        // Add checkout log
         this.visitLogs.push({
             ...visitor,
             action: 'checkout',
@@ -353,30 +308,88 @@ class MainVisitorSystem {
             name: visitor.fullName
         });
 
-        // 현재 방문자 목록에서 제거
+        // Remove from current visitors
         this.currentVisitors.splice(visitorIndex, 1);
 
-        // UI 업데이트
+        // Update UI
         this.updateVisitorCounts();
-        this.updateCheckoutOptions();
         this.hideAllSections();
 
-        // Supabase에 동기화
-        if (window.supabaseClient && window.supabaseClient.client) {
-            window.supabaseClient.syncVisitors();
-            window.supabaseClient.syncLogs();
-        }
-
-        this.showNotification('체크아웃 완료', `${visitor.fullName}님이 체크아웃되었습니다.`, 'success');
-    }
-
-    // 자주 방문자 목록 렌더링
-    renderFrequentVisitorsList() {
-        const container = document.getElementById('frequentVisitorsList');
-        if (!container) {
-            console.log('frequentVisitorsList 컨테이너를 찾을 수 없습니다.');
+        // Sync with Supabase
+        if (window.supabaseClient && window.supabaseClient.isInitialized && window.supabaseClient.client) {
+            try {
+                await window.supabaseClient.syncVisitors();
+                await window.supabaseClient.syncLogs();
+                console.log('Data synced to Supabase successfully');
+            } catch (error) {
+                console.error('Failed to sync to Supabase:', error);
+                this.showNotification('Database Error', 'Failed to save data to database. Please try again.', 'error');
+                return; // Don't show success message if sync failed
+            }
+        } else {
+            this.showNotification('Database Error', 'Database not available. Please refresh the page.', 'error');
             return;
         }
+
+        this.showNotification('Check-out Complete', `${visitor.fullName} has been checked out.`, 'success');
+        
+        // Auto return to main after 2 seconds
+        setTimeout(() => {
+            this.hideAllSections();
+        }, 2000);
+    }
+
+    updateCheckoutOptions() {
+        const container = document.getElementById('checkoutOptions');
+        const confirmBtn = document.getElementById('checkoutConfirmBtn');
+        
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        if (this.currentVisitors.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-users text-4xl mb-4"></i>
+                    <p>No visitors to check out.</p>
+                </div>
+            `;
+            confirmBtn.disabled = true;
+            return;
+        }
+
+        this.currentVisitors.forEach(visitor => {
+            const option = document.createElement('div');
+            option.className = 'flex items-center p-3 border rounded mb-2';
+            option.innerHTML = `
+                <input type="radio" name="checkoutVisitor" value="${visitor.id}" class="radio radio-primary mr-3">
+                <div class="flex-1">
+                    <div class="font-medium">${visitor.fullName}</div>
+                    <div class="text-sm text-gray-500">
+                        ${visitor.category === 'dormitory' ? 'Dormitory' : 'Factory'} • 
+                        ${this.formatTime(visitor.checkinTime)}
+                    </div>
+                </div>
+            `;
+            container.appendChild(option);
+        });
+
+        confirmBtn.disabled = false;
+    }
+
+    updateVisitorCounts() {
+        const dormitoryCount = this.currentVisitors.filter(v => v.category === 'dormitory').length;
+        const factoryCount = this.currentVisitors.filter(v => v.category === 'factory').length;
+        const totalCount = this.currentVisitors.length;
+
+        document.getElementById('dormitoryCount').textContent = dormitoryCount;
+        document.getElementById('factoryCount').textContent = factoryCount;
+        document.getElementById('totalCount').textContent = totalCount;
+    }
+
+    renderFrequentVisitorsList() {
+        const container = document.getElementById('frequentVisitorsList');
+        if (!container) return;
 
         container.innerHTML = '';
 
@@ -384,7 +397,7 @@ class MainVisitorSystem {
             container.innerHTML = `
                 <div class="text-center py-4 text-gray-500">
                     <i class="fas fa-star text-2xl mb-2"></i>
-                    <p>등록된 자주 방문자가 없습니다.</p>
+                    <p>No frequent visitors registered.</p>
                 </div>
             `;
             return;
@@ -402,11 +415,18 @@ class MainVisitorSystem {
         });
     }
 
-    // 자주 방문자 선택
     selectFrequentVisitor(visitorId) {
-        this.selectedVisitorId = visitorId;
-        
-        // 선택된 방문자 하이라이트
+        const visitor = this.frequentVisitors.find(v => v.id == visitorId);
+        if (!visitor) return;
+
+        // Fill in the form
+        const nameParts = visitor.name.split(' ');
+        if (nameParts.length >= 2) {
+            document.getElementById('dormLastName').value = nameParts[0];
+            document.getElementById('dormFirstName').value = nameParts.slice(1).join(' ');
+        }
+
+        // Highlight selected visitor
         document.querySelectorAll('.frequent-visitor-item').forEach(item => {
             item.classList.remove('bg-blue-100', 'border-blue-300');
         });
@@ -417,63 +437,12 @@ class MainVisitorSystem {
         }
     }
 
-    // 방문자 수 업데이트
-    updateVisitorCounts() {
-        const dormitoryCount = this.currentVisitors.filter(v => v.category === 'dormitory').length;
-        const factoryCount = this.currentVisitors.filter(v => v.category === 'factory').length;
-        const totalCount = this.currentVisitors.length;
-
-        document.getElementById('dormitoryCount').textContent = dormitoryCount;
-        document.getElementById('factoryCount').textContent = factoryCount;
-        document.getElementById('totalCount').textContent = totalCount;
-    }
-
-    // 체크아웃 옵션 업데이트
-    updateCheckoutOptions() {
-        const container = document.getElementById('checkoutOptions');
-        const confirmBtn = document.getElementById('checkoutConfirmBtn');
-        
-        if (!container) return;
-
-        container.innerHTML = '';
-
-        if (this.currentVisitors.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-8 text-gray-500">
-                    <i class="fas fa-users text-4xl mb-4"></i>
-                    <p>체크아웃할 방문자가 없습니다.</p>
-                </div>
-            `;
-            confirmBtn.disabled = true;
-            return;
-        }
-
-        this.currentVisitors.forEach(visitor => {
-            const option = document.createElement('div');
-            option.className = 'flex items-center p-3 border rounded mb-2';
-            option.innerHTML = `
-                <input type="radio" name="checkoutVisitor" value="${visitor.id}" class="radio radio-primary mr-3">
-                <div class="flex-1">
-                    <div class="font-medium">${visitor.fullName}</div>
-                    <div class="text-sm text-gray-500">
-                        ${visitor.category === 'dormitory' ? '기숙사' : '공장'} • 
-                        ${this.formatTime(visitor.checkinTime)}
-                    </div>
-                </div>
-            `;
-            container.appendChild(option);
-        });
-
-        confirmBtn.disabled = false;
-    }
-
-    // 폼 초기화
     resetForms() {
-        // 기숙사 폼
+        // Dormitory form
         document.getElementById('dormLastName').value = '';
         document.getElementById('dormFirstName').value = '';
         
-        // 공장 폼
+        // Factory form
         document.getElementById('factoryLastName').value = '';
         document.getElementById('factoryFirstName').value = '';
         document.getElementById('factoryCompany').value = '';
@@ -481,11 +450,78 @@ class MainVisitorSystem {
         document.getElementById('factoryPurpose').value = '';
     }
 
-    // 시간 포맷팅
+    getCurrentLocation() {
+        if (!navigator.geolocation) {
+            this.showNotification('Location Error', 'This browser does not support location services.', 'error');
+            return;
+        }
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000 // 5 minutes cache
+        };
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                this.currentLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                this.updateLocationStatus();
+                this.detectCategory();
+            },
+            (error) => {
+                console.error('Location error:', error);
+                this.showNotification('Location Error', 'Unable to get location. Please set manually.', 'warning');
+            },
+            options
+        );
+    }
+
+    updateLocationStatus() {
+        const statusElement = document.getElementById('locationStatus');
+        if (statusElement && this.currentLocation) {
+            statusElement.textContent = `Lat: ${this.currentLocation.lat.toFixed(6)}, Lng: ${this.currentLocation.lng.toFixed(6)}`;
+        }
+    }
+
+    detectCategory() {
+        if (!this.currentLocation) return;
+
+        for (const location of this.locations) {
+            const distance = this.calculateDistance(
+                this.currentLocation.lat,
+                this.currentLocation.lng,
+                location.lat,
+                location.lng
+            );
+
+            if (distance <= location.radius) {
+                this.detectedCategory = location.category;
+                this.showNotification('Location Detected', `Near ${location.name}.`, 'success');
+                return;
+            }
+        }
+
+        this.detectedCategory = null;
+    }
+
+    calculateDistance(lat1, lng1, lat2, lng2) {
+        const R = 6371; // Earth's radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
     formatTime(date) {
         if (!date) return '-';
         const d = new Date(date);
-        return d.toLocaleString('ko-KR', {
+        return d.toLocaleString('en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -494,7 +530,6 @@ class MainVisitorSystem {
         });
     }
 
-    // 알림 표시
     showNotification(title, message, type = 'info') {
         const modal = document.getElementById('notificationModal');
         const titleElement = document.getElementById('notificationTitle');
@@ -504,77 +539,53 @@ class MainVisitorSystem {
         titleElement.textContent = title;
         messageElement.textContent = message;
 
-        // 아이콘 설정
         const icons = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-circle',
-            warning: 'fas fa-exclamation-triangle',
-            info: 'fas fa-info-circle'
+            success: 'fas fa-check-circle text-green-500',
+            error: 'fas fa-exclamation-circle text-red-500',
+            warning: 'fas fa-exclamation-triangle text-yellow-500',
+            info: 'fas fa-info-circle text-blue-500'
         };
         iconElement.className = `${icons[type]} text-8xl text-transparent bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text animate-pulse`;
 
         modal.classList.add('modal-open');
     }
 
-    // 초기 설정 가이드 표시
-    showInitialSetupGuide() {
-        // 첫 방문 시에만 표시하는 로직
-        if (!localStorage.getItem('visitorSystemSetup')) {
-            setTimeout(() => {
-                this.showNotification(
-                    '환영합니다!', 
-                    '방문자 관리 시스템에 오신 것을 환영합니다. 체크인/체크아웃 버튼을 사용하세요.', 
-                    'info'
-                );
-                localStorage.setItem('visitorSystemSetup', 'true');
-            }, 1000);
-        }
+    hideNotification() {
+        document.getElementById('notificationModal').classList.remove('modal-open');
     }
 
-    // 데이터 새로고침
-    refreshData() {
-        this.showNotification('새로고침', '데이터를 새로고침합니다.', 'info');
-        // 필요시 Supabase에서 최신 데이터 로드
-        if (window.supabaseClient && window.supabaseClient.client) {
-            window.supabaseClient.loadFromDatabase();
-        }
-    }
-
-    // Supabase에서 데이터 로드
     async loadDataFromSupabase() {
-        console.log('=== 메인 시스템 Supabase 데이터 로드 시작 ===');
+        console.log('Loading data from Supabase...');
         
-        if (!window.supabaseClient || !window.supabaseClient.client) {
-            console.warn('Supabase 클라이언트가 없습니다. 로컬 데이터만 사용합니다.');
-            return;
+        // Wait for Supabase client to be ready
+        let attempts = 0;
+        const maxAttempts = 100; // 10 seconds
+        
+        while (attempts < maxAttempts) {
+            if (window.supabaseClient && window.supabaseClient.isInitialized && window.supabaseClient.client) {
+                try {
+                    await window.supabaseClient.loadFromDatabase();
+                    console.log('Data loaded from Supabase successfully');
+                    return;
+                } catch (error) {
+                    console.error('Failed to load from Supabase:', error);
+                    this.showNotification('Database Error', 'Failed to load data from database. Please refresh the page.', 'error');
+                    return;
+                }
+            }
+            console.log(`Waiting for Supabase client... attempt ${attempts + 1}/${maxAttempts}`);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
         }
         
-        try {
-            await window.supabaseClient.loadFromDatabase();
-            console.log('✅ 메인 시스템 Supabase에서 데이터 로드 완료');
-        } catch (error) {
-            console.error('❌ 메인 시스템 Supabase 데이터 로드 실패:', error);
-        }
+        console.error('Supabase not available after maximum attempts');
+        this.showNotification('Connection Error', 'Cannot connect to database. Please check your internet connection and refresh the page.', 'error');
     }
 }
 
-// DOM 로드 완료 후 초기화
+// DOM loaded, initialize system
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('=== 메인 시스템 초기화 시작 ===');
-    
+    console.log('Main system initialization started');
     window.mainVisitorSystem = new MainVisitorSystem();
-    
-    const checkSupabaseAndLoad = () => {
-        if (window.supabaseClient && window.supabaseClient.client) {
-            console.log('Supabase 클라이언트 준비됨, 메인 데이터 로드 시작');
-            window.mainVisitorSystem.loadDataFromSupabase();
-        } else {
-            console.log('Supabase 클라이언트 대기 중...');
-            setTimeout(checkSupabaseAndLoad, 100);
-        }
-    };
-    
-    checkSupabaseAndLoad();
-    
-    console.log('=== 메인 시스템 초기화 완료 ===');
+    console.log('Main system initialization completed');
 });

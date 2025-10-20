@@ -1,0 +1,420 @@
+﻿<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="방문자 관리">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="msapplication-TileColor" content="#3b82f6">
+    <meta name="msapplication-tap-highlight" content="no">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+    <title>기숙사 방문자 관리 시스템</title>
+    <script>
+        // Tailwind CSS CDN 대신 인라인으로 설정
+        tailwind = {
+            config: {
+                theme: {
+                    extend: {
+                        colors: {
+                            primary: '#3b82f6',
+                            secondary: '#8b5cf6',
+                            accent: '#06b6d4',
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#8b5cf6',
+                        accent: '#06b6d4',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 min-h-screen relative overflow-hidden">
+    <!-- 배경 장식 요소들 -->
+    <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div class="absolute top-20 left-10 w-32 h-32 bg-blue-200 rounded-full opacity-20 animate-pulse"></div>
+        <div class="absolute top-40 right-20 w-24 h-24 bg-purple-200 rounded-full opacity-30 animate-bounce"></div>
+        <div class="absolute bottom-20 left-1/4 w-40 h-40 bg-pink-200 rounded-full opacity-25 animate-pulse"></div>
+        <div class="absolute bottom-40 right-1/3 w-28 h-28 bg-green-200 rounded-full opacity-30 animate-bounce"></div>
+    </div>
+    <!-- 상단 헤더 -->
+    <div class="navbar bg-gradient-to-r from-white via-blue-50 to-purple-50 shadow-2xl border-b-4 border-gradient-to-r from-blue-200 to-purple-200 relative z-10">
+        <div class="flex-1">
+            <div class="flex items-center gap-4">
+                <div class="relative">
+                    <i class="fas fa-building text-4xl text-transparent bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text animate-pulse"></i>
+                    <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-ping"></div>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-transparent bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text">Visitor Management System (방문자 관리 시스템)</h1>
+                </div>
+            </div>
+        </div>
+        <div class="flex-none">
+            <button id="adminBtn" class="group relative overflow-hidden bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-red-500/50 transform hover:scale-105 transition-all duration-300">
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                <div class="relative flex items-center gap-2">
+                    <i class="fas fa-cog group-hover:animate-spin"></i>
+                    <span class="font-semibold">Admin Mode (관리자 모드)</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <!-- 메인 컨테이너 -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- 위치 상태 표시 -->
+        <div class="card bg-gradient-to-r from-white via-blue-50 to-purple-50 shadow-2xl mb-8 border-2 border-gradient-to-r from-blue-200 to-purple-200 rounded-2xl overflow-hidden relative">
+            <div class="absolute inset-0 bg-gradient-to-r from-blue-100/30 to-purple-100/30"></div>
+            <div class="card-body relative z-10">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="relative">
+                            <i class="fas fa-map-marker-alt text-3xl text-transparent bg-gradient-to-r from-green-500 to-blue-500 bg-clip-text animate-pulse"></i>
+                            <div class="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-transparent bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text">Current Location (현재 위치)</h2>
+                            <p id="locationStatus" class="text-gray-600 font-medium">Checking location...</p>
+                        </div>
+                    </div>
+                    <div class="badge badge-success text-lg px-4 py-2 shadow-lg animate-pulse" id="locationBadge">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        Location Verified (위치 확인됨)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 메인 액션 버튼들 -->
+        <div id="mainButtons" class="flex justify-center gap-12 mb-12">
+            <!-- 체크인 버튼 -->
+            <button id="checkinBtn" class="group relative overflow-hidden bg-gradient-to-br from-green-400 via-green-500 to-green-600 hover:from-green-500 hover:via-green-600 hover:to-green-700 text-white text-4xl px-12 py-8 h-auto min-h-32 w-64 rounded-2xl shadow-2xl hover:shadow-green-500/50 transform hover:scale-105 transition-all duration-300 ease-in-out border-4 border-green-300 hover:border-green-400">
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                <div class="flex flex-col items-center gap-4 relative z-10">
+                    <i class="fas fa-sign-in-alt text-6xl drop-shadow-lg group-hover:animate-bounce"></i>
+                    <span class="text-3xl font-bold drop-shadow-md">Check In (체크인)</span>
+                </div>
+            </button>
+
+            <!-- 체크아웃 버튼 -->
+            <button id="checkoutBtn" class="group relative overflow-hidden bg-gradient-to-br from-red-400 via-red-500 to-red-600 hover:from-red-500 hover:via-red-600 hover:to-red-700 text-white text-4xl px-12 py-8 h-auto min-h-32 w-64 rounded-2xl shadow-2xl hover:shadow-red-500/50 transform hover:scale-105 transition-all duration-300 ease-in-out border-4 border-red-300 hover:border-red-400">
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                <div class="flex flex-col items-center gap-4 relative z-10">
+                    <i class="fas fa-sign-out-alt text-6xl drop-shadow-lg group-hover:animate-bounce"></i>
+                    <span class="text-3xl font-bold drop-shadow-md">Check Out (체크아웃)</span>
+                </div>
+            </button>
+        </div>
+
+        <!-- 체크인 섹션 -->
+        <div id="checkinSection" class="hidden">
+            <div class="card bg-gradient-to-br from-white via-green-50 to-blue-50 shadow-2xl max-w-2xl mx-auto mb-8 border-2 border-gradient-to-r from-green-200 to-blue-200 rounded-2xl overflow-hidden relative">
+                <div class="absolute inset-0 bg-gradient-to-r from-green-100/20 to-blue-100/20"></div>
+                <div class="card-body relative z-10">
+                    <h2 class="text-4xl font-bold text-transparent bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text mb-6 text-center">
+                        <i class="fas fa-sign-in-alt mr-3 animate-pulse"></i>
+                        Visitor Check In (방문자 체크인)
+                    </h2>
+                    
+                    <!-- 기숙사 체크인 폼 -->
+                    <div id="dormitoryForm" class="space-y-6">
+                        <!-- 사전 등록된 방문자 선택 -->
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold text-lg">Visitor Selection (방문자 선택)</span>
+                            </label>
+                            <div class="flex gap-2">
+                                <button id="dormManualEntry" class="btn btn-outline btn-secondary flex-1">
+                                    <i class="fas fa-edit mr-2"></i>
+                                    Manual Entry (직접 입력)
+                                </button>
+                                <button id="dormSelectRegistered" class="btn btn-outline btn-primary flex-1">
+                                    <i class="fas fa-user-check mr-2"></i>
+                                    Registered Visitor (기존 방문자)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 등록된 방문자 선택 영역 -->
+                        <div id="dormRegisteredSection" class="hidden">
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-semibold text-lg">Registered Visitor List (등록된 방문자 목록)</span>
+                                </label>
+                                <select id="dormRegisteredSelect" class="select select-bordered select-lg w-full">
+                                    <option value="">Please select a registered visitor</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 직접 입력 영역 -->
+                        <div id="dormManualSection">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="form-control">
+                                    <label class="label">
+                                        <span class="label-text font-semibold text-lg">Last Name (성)</span>
+                                    </label>
+                                    <input type="text" id="dormLastName" placeholder="Enter last name" 
+                                           class="input input-bordered input-lg w-full">
+                                </div>
+                                <div class="form-control">
+                                    <label class="label">
+                                        <span class="label-text font-semibold text-lg">First Name (이름)</span>
+                                    </label>
+                                    <input type="text" id="dormFirstName" placeholder="Enter first name" 
+                                           class="input input-bordered input-lg w-full">
+                                </div>
+                            </div>
+                            
+                            <!-- 자주 방문자 목록 -->
+                            <div class="mt-6">
+                                <h4 class="text-lg font-semibold mb-3 text-gray-700">
+                                    <i class="fas fa-star text-yellow-500 mr-2"></i>
+                                    자주 방문하는 방문자
+                                </h4>
+                                <div id="frequentVisitorsList" class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                    <!-- 자주 방문자 목록이 여기에 동적으로 추가됩니다 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="dormCheckinBtn" class="btn btn-success btn-lg w-full">
+                            <i class="fas fa-sign-in-alt mr-2"></i>
+                            Complete Check In (체크인 완료)
+                        </button>
+                        
+                        <!-- 메인으로 돌아가기 버튼 -->
+                        <button id="backToMainFromDormCheckin" class="btn btn-outline btn-lg w-full mt-4">
+                            <i class="fas fa-arrow-left mr-2"></i>
+                            Back to Main (메인으로 돌아가기)
+                        </button>
+                    </div>
+
+                    <!-- 공장 체크인 폼 -->
+                    <div id="factoryForm" class="space-y-6 hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-semibold text-lg">Last Name (성)</span>
+                                </label>
+                                <input type="text" id="factoryLastName" placeholder="Enter last name" 
+                                       class="input input-bordered input-lg w-full" required>
+                            </div>
+                            <div class="form-control">
+                                <label class="label">
+                                    <span class="label-text font-semibold text-lg">First Name (이름)</span>
+                                </label>
+                                <input type="text" id="factoryFirstName" placeholder="Enter first name" 
+                                       class="input input-bordered input-lg w-full" required>
+                            </div>
+                </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold text-lg">Company (회사)</span>
+                            </label>
+                            <input type="text" id="factoryCompany" placeholder="Enter company name" 
+                                   class="input input-bordered input-lg w-full" required>
+                </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold text-lg">Phone Number (전화번호)</span>
+                            </label>
+                            <input type="tel" id="factoryPhone" placeholder="Enter phone number" 
+                                   class="input input-bordered input-lg w-full" required>
+                </div>
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold text-lg">Visit Purpose (방문 목적)</span>
+                            </label>
+                            <select id="factoryPurpose" class="select select-bordered select-lg w-full" required>
+                                <option value="">Please select visit purpose</option>
+                                <option value="business">Business (업무)</option>
+                                <option value="delivery">Delivery (배송)</option>
+                                <option value="maintenance">Maintenance (유지보수)</option>
+                                <option value="inspection">Inspection (점검)</option>
+                                <option value="meeting">Meeting (회의)</option>
+                                <option value="other">Other (기타)</option>
+                    </select>
+                        </div>
+                        <button id="factoryCheckinBtn" class="btn btn-success btn-lg w-full">
+                            <i class="fas fa-sign-in-alt mr-2"></i>
+                            Complete Check In (체크인 완료)
+                        </button>
+                        
+                        <!-- 메인으로 돌아가기 버튼 -->
+                        <button id="backToMainFromFactoryCheckin" class="btn btn-outline btn-lg w-full mt-4">
+                            <i class="fas fa-arrow-left mr-2"></i>
+                            Back to Main (메인으로 돌아가기)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 체크아웃 섹션 -->
+        <div id="checkoutSection" class="hidden">
+            <div class="card bg-gradient-to-br from-white via-red-50 to-pink-50 shadow-2xl max-w-2xl mx-auto mb-8 border-2 border-gradient-to-r from-red-200 to-pink-200 rounded-2xl overflow-hidden relative">
+                <div class="absolute inset-0 bg-gradient-to-r from-red-100/20 to-pink-100/20"></div>
+                <div class="card-body relative z-10">
+                    <h2 class="text-4xl font-bold text-transparent bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text mb-6 text-center">
+                        <i class="fas fa-sign-out-alt mr-3 animate-pulse"></i>
+                        Visitor Check Out (방문자 체크아웃)
+                    </h2>
+                    
+                    <div class="space-y-6">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-semibold text-lg">Search by Last Name (성으로 검색)</span>
+                            </label>
+                            <input type="text" id="checkoutSearch" placeholder="Enter last name to search visitors" 
+                                   class="input input-bordered input-lg w-full">
+                        </div>
+                        
+                        <!-- 검색 결과 목록 -->
+                        <div id="checkoutResults" class="space-y-2 hidden">
+                            <label class="label">
+                                <span class="label-text font-semibold">Search Results (검색 결과)</span>
+                            </label>
+                            <div id="checkoutList" class="space-y-2">
+                                <!-- 검색 결과가 여기에 표시됩니다 -->
+                            </div>
+                        </div>
+                        
+                        <button id="checkoutConfirmBtn" class="btn btn-error btn-lg w-full" disabled>
+                            <i class="fas fa-sign-out-alt mr-2"></i>
+                            Complete Check Out (체크아웃 완료)
+                        </button>
+                        
+                        <!-- 메인으로 돌아가기 버튼 -->
+                        <button id="backToMainFromCheckout" class="btn btn-outline btn-lg w-full mt-4">
+                            <i class="fas fa-arrow-left mr-2"></i>
+                            Back to Main (메인으로 돌아가기)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 현재 방문자 수 표시 (관리자 모드에서만 표시) -->
+        <div id="visitorStatusCard" class="card bg-white shadow-xl max-w-4xl mx-auto hidden">
+            <div class="card-body text-center">
+                <h3 class="text-xl font-semibold mb-4">
+                    <i class="fas fa-users text-primary mr-2"></i>
+                    현재 방문자 현황
+                </h3>
+                <div class="stats shadow">
+                    <div class="stat">
+                        <div class="stat-figure text-primary">
+                            <i class="fas fa-home text-3xl"></i>
+                        </div>
+                        <div class="stat-title">기숙사</div>
+                        <div class="stat-value text-primary" id="dormitoryCount">0</div>
+                        <div class="stat-desc">명 체크인 중</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-figure text-warning">
+                            <i class="fas fa-industry text-3xl"></i>
+                        </div>
+                        <div class="stat-title">공장</div>
+                        <div class="stat-value text-warning" id="factoryCount">0</div>
+                        <div class="stat-desc">명 체크인 중</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-figure text-success">
+                            <i class="fas fa-users text-3xl"></i>
+                        </div>
+                        <div class="stat-title">총 방문자</div>
+                        <div class="stat-value text-success" id="totalCount">0</div>
+                        <div class="stat-desc">명 체크인 중</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 알림 모달 -->
+    <div id="notificationModal" class="modal">
+        <div class="modal-box bg-gradient-to-br from-white via-blue-50 to-purple-50 shadow-2xl border-2 border-gradient-to-r from-blue-200 to-purple-200 rounded-2xl overflow-hidden relative">
+            <div class="absolute inset-0 bg-gradient-to-r from-blue-100/30 to-purple-100/30"></div>
+            <div class="text-center relative z-10">
+                <div class="relative inline-block mb-6">
+                    <i id="notificationIcon" class="fas fa-info-circle text-8xl text-transparent bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text animate-pulse"></i>
+                    <div class="absolute -top-2 -right-2 w-4 h-4 bg-blue-400 rounded-full animate-ping"></div>
+                </div>
+                <h3 id="notificationTitle" class="text-3xl font-bold text-transparent bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text mb-4">Notification (알림)</h3>
+                <p id="notificationMessage" class="text-gray-600 mb-8 text-lg font-medium"></p>
+                <button id="notificationOk" class="group relative overflow-hidden bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-8 py-4 rounded-xl shadow-lg hover:shadow-blue-500/50 transform hover:scale-105 transition-all duration-300">
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                    <span class="relative font-semibold text-lg">OK (확인)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js?v=5"></script>
+    <script>
+        // Supabase 클라이언트 초기화를 기다림
+        window.addEventListener('load', () => {
+            // Supabase 클라이언트가 준비될 때까지 기다림
+            const initSupabaseClient = () => {
+                if (window.supabaseClient && window.supabaseClient.client) {
+                    console.log('Supabase 클라이언트 준비 완료');
+                } else {
+                    setTimeout(initSupabaseClient, 100);
+                }
+            };
+            initSupabaseClient();
+        });
+    </script>
+    <script src="supabase-client.js?v=5"></script>
+    <script src="main.js?v=5"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('Service Worker 등록 성공:', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.error('Service Worker 등록 실패:', registrationError);
+                    });
+            });
+        } else {
+            console.warn('Service Worker를 지원하지 않는 브라우저입니다.');
+        }
+    </script>
+</body>
+</html>

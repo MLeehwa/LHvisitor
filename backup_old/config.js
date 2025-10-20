@@ -1,11 +1,11 @@
-// Supabase Configuration File
+// Supabase 설정 파일
 class DatabaseConfig {
     constructor() {
-        // Supabase settings
+        // Supabase 설정
         this.supabaseUrl = 'https://xqjyhoxtahfvfvedoljz.supabase.co';
         this.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxanlob3h0YWhmdmZ2ZWRvbGp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYxMzM3MzMsImV4cCI6MjA2MTcwOTczM30.unZyS_3aBRq2F0vv62jquTAy7cX40mE5nZYDRajhNqw';
         
-        // Database table names
+        // 데이터베이스 테이블명
         this.tables = {
             visitors: 'visitors',
             visitLogs: 'visit_logs',
@@ -13,7 +13,7 @@ class DatabaseConfig {
             frequentVisitors: 'frequent_visitors'
         };
         
-        // Local storage keys
+        // 로컬 스토리지 키
         this.storageKeys = {
             currentVisitors: 'visitorSystem_currentVisitors',
             visitLogs: 'visitorSystem_visitLogs',
@@ -21,40 +21,40 @@ class DatabaseConfig {
             frequentVisitors: 'visitorSystemFrequentVisitors'
         };
         
-        // Sync settings
+        // 동기화 설정
         this.sync = {
-            enabled: true, // Set to true to sync with Supabase
-            autoSync: true, // Auto sync enabled
-            syncInterval: 30000, // Sync every 30 seconds
-            batchSize: 50 // Number of records to process at once
+            enabled: true, // true로 설정하면 Supabase와 동기화
+            autoSync: true, // 자동 동기화 여부
+            syncInterval: 30000, // 30초마다 동기화
+            batchSize: 50 // 한 번에 처리할 데이터 수
         };
     }
     
-    // Initialize Supabase client
+    // Supabase 클라이언트 초기화
     initSupabase() {
-        // Wait for Supabase to load
+        // Supabase가 로드될 때까지 기다림
         if (typeof supabase === 'undefined') {
-            console.warn('Supabase not loaded yet. Retrying in a moment...');
+            console.warn('Supabase가 아직 로드되지 않았습니다. 잠시 후 다시 시도합니다.');
             return null;
         }
         
         try {
             const client = supabase.createClient(this.supabaseUrl, this.supabaseKey);
-            console.log('Supabase client created successfully');
+            console.log('Supabase 클라이언트 생성 성공');
             return client;
         } catch (error) {
-            console.error('Failed to create Supabase client:', error);
+            console.error('Supabase 클라이언트 생성 실패:', error);
             return null;
         }
     }
     
-    // Update configuration
+    // 설정 업데이트
     updateConfig(newConfig) {
         Object.assign(this, newConfig);
         localStorage.setItem('visitorSystem_config', JSON.stringify(this));
     }
     
-    // Load configuration
+    // 설정 로드
     loadConfig() {
         const savedConfig = localStorage.getItem('visitorSystem_config');
         if (savedConfig) {
@@ -63,12 +63,12 @@ class DatabaseConfig {
         }
     }
     
-    // Save configuration
+    // 설정 저장
     saveConfig() {
         localStorage.setItem('visitorSystem_config', JSON.stringify(this));
     }
 }
 
-// Global configuration instance
+// 전역 설정 인스턴스
 window.dbConfig = new DatabaseConfig();
 window.dbConfig.loadConfig();
